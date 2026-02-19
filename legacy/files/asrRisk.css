@@ -1,0 +1,215 @@
+@charset "UTF-8";
+body {
+	font-family: Gotham, "Helvetica Neue", Helvetica, Arial, sans-serif
+}
+html, body {
+	overflow-x: hidden;
+}
+h1 {
+	margin-top: .5em;
+	margin-bottom: .2em;
+	font-size: 150%;
+	color: #DE6902;
+	display: inline-block;
+	margin-right: 1em;
+}
+h2 {
+	font-size: 125%;
+	color: #012DF8;
+	margin-top: 1em;
+	margin-bottom: 1em;
+	position: relative;
+}
+h2::before:not(.reportDialogContent h2) {
+	content: "";
+	position: absolute;
+	width: 100%;
+	height: .1em;
+	left: .4em;
+	display: block;
+	clear: both;
+	background-color: #012df8;
+}
+.completed {
+	/* display: inline-block; */
+	/* font-size: 175%; */
+	padding-left: 1em;
+	/* padding-right: 1em; */
+	/*	color:#00A11B; */
+	/* font-weight: bold; */
+}
+.selected {
+	background-color:#ddd;
+}
+.black {
+	text-align: right;
+	background-color: black;
+	color: white;
+}
+.footnotes {
+	font-size: 66%;
+}
+.aggregator {
+	font-weight: bold;
+	background-color: #ddf;
+	display: block;
+	padding: .5em;
+	margin-top: 1em;
+	margin-bottom: 1em;
+	width: 50%;
+	min-width: 30em;
+}
+.tabRow {
+	border: none;
+}
+.tabRow td {
+	vertical-align: top;
+}
+.tabRow td:nth-child(2) {
+	align-content: right;
+	padding-left: 2em;
+}
+.divider {
+	display: inline-block;
+	width: 1em;
+}
+.aggregate {
+	display: inline-block;
+	width: 8em;
+	text-align: right;
+}
+.description {
+	margin-left: -1em;
+	margin-right: 2em;
+	width: 100%;
+}
+.slider3 {
+	width: 6em;
+}
+.slider5 {
+	width: 10em;
+}
+.processTable {
+	/*	width: 50%; */
+	min-width: 35em;
+	border: .1em solid #B5BC7C;
+	border-collapse: collapse;
+}
+.processTable td {
+	vertical-align: top;
+	/*  margin: .333em; */
+	padding: .333em;
+}
+.factorValue {
+	text-align: right;
+	margin-left: 1em;
+}
+.processTable td:nth-of-type(1) {
+	width: 15em;
+}
+.textRight {
+	text-align: right;
+}
+.right {
+	display: inline-block;
+	float: right;
+}
+.fubar {
+	min-width: 50em;
+	max-width: 60em;
+}
+.button {
+	width: 10em;
+	font-size: 100%;
+}
+input, .input, select {
+	font-size: 100%;
+}
+.vtMatrix {
+	border-collapse: collapse;
+}
+.vtMatrix td {
+	border: thin solid #aaa;
+	min-width: 5em;
+	padding: .33em;
+	vertical-align: middle;
+	text-align: center;
+}
+.vtMatrix tr:nth-child(1) td {
+	background-color: black;
+	color: white;
+	font-weight: bold
+}
+.vtMatrix tr:not(:nth-child(1)) td:nth-child(1) {
+background-color: black;
+color:white;
+font-weight:bold
+}
+.vtMatrix tr:nth-child(1) td:nth-child(1) {
+	background-color: white;
+	color: black;
+	border: none;
+}
+.vtMatrix input[type=checkbox] {
+	width: 1.25em;
+	height: 1.25em;
+}
+.reportRiskTable {
+	width: 100%;
+	border-collapse:collapse;
+}
+.reportRiskTable thead th, .reportRiskTable tbody td, .reportRiskTable tfoot td {
+	border: thin solid #444;
+	padding: .1em;
+}
+.reportRiskTable thead th {
+	background-color:black;
+	font-size:80%;
+	color:white;
+	vertical-align:bottom;
+}
+.reportRiskTable thead th:nth-of-type(1)
+{
+	text-align:left;
+}
+.reportRiskTable thead th:nth-of-type(2)
+{
+	text-align:right;
+}
+.reportRiskTable tfoot td {
+	background-color: black;
+	font-size:100%;
+	color:white;
+	font-weight:bold;
+	vertical-align:bottom;
+}
+.rrtName {
+	width:35%;
+	text-align:left;
+}
+.rrtValue {
+	width:10%;
+	text-align:right;
+}
+
+.divTable {
+	display: table;
+	width: 100%;
+}
+.divRow {
+	display:table-row;
+}
+.divCell {
+	display:table-cell;
+}
+.small {
+	font-size: 85%;
+}
+.stormFactor label {
+	font-weight: bold;
+	display: inline-block;
+	width: 8em;
+}
+.dataTable tbody td {
+	cursor: pointer;
+}

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="utf-8">
+<title>ASR Risk Assessment</title>
+<meta name="copyright" content="(c) 2014-2018 RESCOR; To use STORM independent ancillary processes (STAP, SAVP, SVAP, and SCEP) you must obtain permission from RESCOR. Use of STORM IAP in support of your own risk management programs, but not by consulting or other service organizations in support of third party risk management programs, is usually free of charge; All other rights reserved.">
+<link rel="stylesheet" href="files/jquery-ui.css">
+<link rel="stylesheet" href="files/asrRisk.css">
+<link rel="stylesheet" href="files/datatables.css">
+<script src="files/jquery-3.js"></script>
+<script src="files/datatables.js"></script>
+<script src="files/jquery-ui.js"></script>
+<script type="application/javascript" src="files/Interactions.js"></script>
+<script type="application/javascript" src="files/StackMap.js"></script>
+<script type="application/javascript" src="files/STORM.js"></script>
+<script type="application/javascript" src="files/asrRisk.js"></script>
+<style>
+.selectable .ui-selecting { background: #FECA40; }
+.selectable .ui-selected { background: #F39814; color: white; }
+.selectable { list-style-type: none; margin: 0; padding: 0; width: 60%; }
+.selectable li { border: thin solid black; width: 15em; margin: 0.1em; padding: 0.2em; }
+#autosave { display: inline-block; float: right; margin-top: 1em }
+</style>
+<script>
+// jQuery "ready" function
+$(function() 
+{
+	if (typeof pageLocal === "function")
+	{
+		pageLocal();
+	} 
+});
+</script>
+</head>
+<body>
+<h1>ASR Risk Assessment</h1>
+<button name="select" id="select" class="button">Select Model</button>
+<span style="width:2em;display:inline-block"></span>
+<label for="modelName">Current Model&nbsp;</label><span style="font-weight:bold" class="input ui-autocomplete-input" id="modelName"></span>
+<span style="width:2em;display:inline-block"></span>
+<button name="save" id="save" class="button">Save Model</button>
+<span style="width:2em;display:inline-block"></span>
+<button name="reset" id="reset" class="button">Reset Model</button>
+<div id="autosave"></div>
+<hr>
+<button name="risks" id="risks" class="button">Generate Risks</button>
+<span class="divider"></span>
+<div style="display:none">
+<input disabled="disabled" id="threatAggregated" value="tar" type="checkbox">
+<label for="threatAggregated">Show Threat-Aggregated Risk</label>
+</div>
+<span class="divider"></span>
+<button name="reporter" id="reporter" class="button">Show Report</button>
+<input id="riskDisplay" value="vtp" type="hidden">
+<p></p>
+<!-------------------------------------------------------------------------->
+<table id="riskVtp" class="riskModel" data-exposure="1" data-impact="" data-probability="" data-dle="6" data-sle="7" style="display:none">
+  <thead>
+    <tr>
+      <th>Threat Name (T)</th>
+      <th>Probability (T)</th>
+      <th>Impact (T)</th>
+      <th>Vulnerability Name (V)</th>
+      <th>Exposure (V)</th>
+      <th>Asset Value (A)</th>
+      <th>Risk (DLE)</th>
+      <th>Risk (SLE)</th>
+    </tr>
+  </thead>
+  <tfoot>
+    <tr>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th class="black"></th>
+      <th class="black"></th>
+      <th class="black"></th>
+    </tr>
+  </tfoot>
+</table>
+<!-------------------------------------------------------------------------->
+<table id="riskTar" class="riskModel" data-exposure="1" data-impact="3" data-probability="2" data-dle="5" data-sle="6" style="display:none">
+  <thead>
+    <tr>
+      <th>Vulnerability Name (V)</th>
+      <th>Exposure (V)</th>
+      <th>Σ Probability (T)</th>
+      <th>Σ Impact (T)</th>
+      <th>Asset Value (A)</th>
+      <th>Risk (DLE)</th>
+      <th>Risk (SLE)</th>
+    </tr>
+  </thead>
+  <tfoot>
+    <tr>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th class="black"></th>
+      <th class="black"></th>
+      <th class="black"></th>
+    </tr>
+  </tfoot>
+</table>
+<!-------------------------------------------------------------------------->
+<table id="riskTable" class="cell-border compact stripe">
+  <thead>
+    <tr>
+      <th>Threat Name (T)</th>
+      <th>Probability (T)</th>
+      <th>Impact (T)</th>
+      <th>Vulnerability Name (V)</th>
+      <th>Exposure (V)</th>
+      <th>Asset Value (A)</th>
+      <th>Risk (DLE)</th>
+      <th>Risk (SLE)</th>
+    </tr>
+  </thead>
+  <tfoot>
+    <tr>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th class="black"></th>
+      <th class="black"></th>
+      <th class="black"></th>
+    </tr>
+  </tfoot>
+</table>
+<div id="steps" class="ui-tabs ui-corner-all ui-widget ui-widget-content"> 
+  <!-- Tabs -->
+  <ul id="tabs" role="tablist" class="ui-tabs-nav ui-corner-all ui-helper-reset ui-helper-clearfix ui-widget-header">
+    <li role="tab" tabindex="0" class="ui-tabs-tab ui-corner-top ui-state-default ui-tab ui-tabs-active ui-state-active" aria-controls="assetTab" aria-labelledby="ui-id-5" aria-selected="true" aria-expanded="true"><a href="#assetTab" role="presentation" tabindex="-1" class="ui-tabs-anchor" id="ui-id-5">Asset Valuation (A)<span id="ac" class="completed" style="display: none;">&nbsp;✔</span></a></li>
+    <li role="tab" tabindex="-1" class="ui-tabs-tab ui-corner-top ui-state-default ui-tab" aria-controls="threatTab" aria-labelledby="ui-id-6" aria-selected="false" aria-expanded="false"><a href="#threatTab" role="presentation" tabindex="-1" class="ui-tabs-anchor" id="ui-id-6">Threat Assessment (T)<span id="tc" class="completed" style="display: none;">&nbsp;✔</span></a></li>
+    <li role="tab" tabindex="-1" class="ui-tabs-tab ui-corner-top ui-state-default ui-tab" aria-controls="vulnerabilityTab" aria-labelledby="ui-id-7" aria-selected="false" aria-expanded="false"><a href="#vulnerabilityTab" role="presentation" tabindex="-1" class="ui-tabs-anchor" id="ui-id-7">Vulnerability Assessment (V)<span id="vc" class="completed" style="display: none;">&nbsp;✔</span></a></li>
+    <li style="display:none" role="tab" tabindex="-1" class="ui-tabs-tab ui-corner-top ui-state-default ui-tab" aria-controls="vtTab" aria-labelledby="ui-id-8" aria-selected="false" aria-expanded="false"><a href="#vtTab" role="presentation" tabindex="-1" class="ui-tabs-anchor" id="ui-id-8">V-T Pairing<span id="vtc" class="completed" style="display: none;">&nbsp;✔</span></a></li>
+    <li role="tab" tabindex="-1" class="ui-tabs-tab ui-corner-top ui-state-default ui-tab" aria-controls="controlTab" aria-labelledby="ui-id-9" aria-selected="false" aria-expanded="false"><a href="#controlTab" role="presentation" tabindex="-1" class="ui-tabs-anchor" id="ui-id-9">Control Assessment (C)<span id="cc" class="completed" style="display: none;">&nbsp;✔</span></a></li>
+  </ul>
+  <!-- id="tabs" --> 
+  <!-------------------------------------------------------------------------->
+  <div class="tab ui-tabs-panel ui-corner-bottom ui-widget-content" id="assetTab" aria-labelledby="ui-id-5" role="tabpanel" aria-hidden="false">
+    <p>Specify application characteristics that affect asset value.</p>
+    <table id="assetTabRow" class="tabRow">
+      <tbody><tr>
+        <td><table id="assetProcessTable" class="processTable" border="0">
+            <tbody>
+              <tr>
+                <td class="factorLabel" title="Akamai Data Classification">Akamai Data Classification</td>
+                <td><div class="slider slider3 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="classSlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="classValue" style="color: rgb(0, 187, 0);">Public</td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="Extent of application usage">Extent of Application Usage</td>
+                <td><div class="slider slider5 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="usersSlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="usersValue" style="color: rgb(0, 187, 0);">1-10</td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="Extent of HV data usage">High Value Data Usage</td>
+                <td><div class="slider slider5 stormFactor" id="highValueSlider"><label for="highValueData_none">None</label><input id="highValueData_none" name="highValueData" value="1" type="checkbox"><label for="highValueData_business">Business</label><input id="highValueData_business" name="highValueData" value="3" type="checkbox"><label for="highValueData_it">IT</label><input id="highValueData_it" name="highValueData" value="4" type="checkbox"><label for="highValueData_legal">Legal</label><input id="highValueData_legal" name="highValueData" value="6" type="checkbox"><label for="highValueData_finance">Finance</label><input id="highValueData_finance" name="highValueData" value="7" type="checkbox"><label for="highValueData_hr">HR</label><input id="highValueData_hr" name="highValueData" value="8" type="checkbox"></div></td>
+                <td class="factorValue" id="highValueValue" style="color: rgb(0, 187, 0);">None</td>
+              </tr>
+              <tr bgcolor="#000">
+                <td style="color:#ccc" colspan="2" class="factorLabel">Asset Value</td>
+                <td style="color:#ccc" class="factorLabel right" id="assetValue">0.0065</td>
+              </tr>
+              <tr>
+                <td class="factorLabel">&nbsp;</td>
+                <td class="factorLabel" colspan="2"><button class="button right" id="setValue" name="setValue">Set Value</button></td>
+              </tr>
+            </tbody>
+          </table></td>
+        <td></td>
+      </tr>
+    </tbody></table>
+  </div>
+  <!-------------------------------------------------------------------------->
+  <div class="tab ui-tabs-panel ui-corner-bottom ui-widget-content" id="threatTab" aria-labelledby="ui-id-6" role="tabpanel" style="display: none;" aria-hidden="true">
+    <p>Enter the characteristics of the likely threats to this application.
+    <button id="tLoad" class="button right">Load Template</button>
+    <button id="tSave" class="button right">Save Template</button>
+    </p>
+    <table id="threatTabRow" class="tabRow">
+      <tbody><tr>
+        <td><table id="threatProcessTable" class="processTable" border="0">
+            <tbody>
+              <tr>
+                <td class="factorLabel" title="Description of this threat">Threat Description</td>
+                <td colspan="2"><input id="threatName" name="threatName" class="description ui-autocomplete-input" type="text"></td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="The historical or actuarial frequency of the threat"> History</td>
+                <td><div class="slider ham slider5 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="historySlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="historyValue" style="color: rgb(0, 187, 0);">Improbable</td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="The level of access the threat agent has to vulnerable resources"> Access</td>
+                <td><div class="slider ham slider3 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="accessSlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="accessValue" style="color: rgb(0, 187, 0);">Outsider Access</td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="The resources available to the threat agent">Means</td>
+                <td><div class="slider ham slider3 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="meansSlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="meansValue" style="color: rgb(0, 187, 0);">Individual</td>
+              </tr>
+              <tr bgcolor="#000">
+                <td style="color:#ccc" colspan="2" class="factorLabel">Threat Probability (Distributed Loss)</td>
+                <td style="color:#ccc" class="factorLabel right" id="probabilityValue">0.0222</td>
+              </tr>
+              <tr bgcolor="#000">
+                <td style="color:#ccc" colspan="2" class="factorLabel">Threat Impact (Single Loss)</td>
+                <td style="color:#ccc" class="factorLabel right" id="impactValue">0.1111</td>
+              </tr>
+              <tr>
+                <td class="factorLabel">&nbsp;</td>
+                <td class="factorLabel" colspan="2"><button class="add right" id="addThreat" name="buttonThreat">Add Threat</button></td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <!-------------------------------------------------------------------------->
+          
+          <input id="probabilityAggregate" name="probabilityAggregate" value="0.0000" type="hidden">
+          <input id="impactAggregate" name="impactAggregate" value="0.0000" type="hidden"></td>
+        <td><!-------------------------------------------------------------------------->
+          
+          <div id="threats_wrapper" class="dataTables_wrapper"><div class="dataTables_length" id="threats_length"><label>Show <select name="threats_length" aria-controls="threats" class=""><option value="10" selected="selected">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select> entries</label></div><div id="threats_filter" class="dataTables_filter"><label>Search:<input class="" placeholder="" aria-controls="threats" type="search"></label></div><table id="threats" class="cell-border compact stripe fubar dataTable" role="grid" aria-describedby="threats_info" style="width: 0px;">
+            <thead>
+              <tr role="row"><th class="sorting" tabindex="0" aria-controls="threats" rowspan="1" colspan="1" style="width: 0px;" aria-label="Threat Description: activate to sort column ascending">Threat Description</th><th class="sorting" tabindex="0" aria-controls="threats" rowspan="1" colspan="1" style="width: 0px;" aria-label="Template?: activate to sort column ascending">Template?</th><th class="textRight sorting" tabindex="0" aria-controls="threats" rowspan="1" colspan="1" style="width: 0px;" aria-label="History: activate to sort column ascending">History</th><th class="textRight sorting" tabindex="0" aria-controls="threats" rowspan="1" colspan="1" style="width: 0px;" aria-label="Access: activate to sort column ascending">Access</th><th class="textRight sorting" tabindex="0" aria-controls="threats" rowspan="1" colspan="1" style="width: 0px;" aria-label="Means: activate to sort column ascending">Means</th><th class="textRight sorting_desc" tabindex="0" aria-controls="threats" rowspan="1" colspan="1" style="width: 0px;" aria-sort="descending" aria-label="Probability: activate to sort column ascending">Probability</th><th class="textRight sorting_desc" tabindex="0" aria-controls="threats" rowspan="1" colspan="1" style="width: 0px;" aria-label="Impact: activate to sort column ascending">Impact</th></tr>
+            </thead>
+            <tfoot>
+              <tr><th rowspan="1" colspan="1"></th><th rowspan="1" colspan="1"></th><th class="textRight" rowspan="1" colspan="1"></th><th class="textRight" rowspan="1" colspan="1"></th><th class="textRight black" rowspan="1" colspan="1">AGGREGATE</th><th class="textRight black" rowspan="1" colspan="1">0.0000</th><th class="textRight black" rowspan="1" colspan="1">0.0000</th></tr>
+            </tfoot>
+          <tbody><tr class="odd"><td colspan="7" class="dataTables_empty" valign="top">No data available in table</td></tr></tbody></table><div class="dataTables_info" id="threats_info" role="status" aria-live="polite">Showing 0 to 0 of 0 entries</div><div class="dataTables_paginate paging_simple_numbers" id="threats_paginate"><a class="paginate_button previous disabled" aria-controls="threats" data-dt-idx="0" tabindex="0" id="threats_previous">Previous</a><span></span><a class="paginate_button next disabled" aria-controls="threats" data-dt-idx="1" tabindex="0" id="threats_next">Next</a></div></div></td>
+      </tr>
+    </tbody></table>
+  </div>
+  <!-------------------------------------------------------------------------->
+  <div class="tab ui-tabs-panel ui-corner-bottom ui-widget-content" id="vulnerabilityTab" aria-labelledby="ui-id-7" role="tabpanel" style="display: none;" aria-hidden="true">
+    <p>Enter the characteristics of the likely vulnerabilities of this application.
+    <button id="vLoad" class="button right">Load Template</button>
+    <button id="vSave" class="button right">Save Template</button>
+    </p>
+    <table id="vulnerabilityTabRow" class="tabRow">
+      <tbody><tr>
+        <td><table id="vulnerabilityProcessTable" class="processTable" border="0">
+            <tbody>
+              <tr>
+                <td class="factorLabel" title="Description of vulnerability">Vulnerability Description</td>
+                <td colspan="2"><input id="vulnerabilityName" name="vulnerabilityName" class="description ui-autocomplete-input" type="text"></td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="Skills required to exploit the vulnerability (C)">Skills/Capabilities</td>
+                <td><div class="slider crve slider3 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="capabilitiesSlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="capabilitiesValue" style="color: rgb(0, 187, 0);">Expert</td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="Resources required to exploit the vulnerability (R)">Resources Required</td>
+                <td><div class="slider crve slider3 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="resourcesSlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="resourcesValue" style="color: rgb(0, 187, 0);">Nation State</td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="Visibility of vulnerability (V)">Visibility</td>
+                <td><div class="slider crve slider3 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="visibilitySlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="visibilityValue" style="color: rgb(0, 187, 0);">Need to Know</td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="Effects on confidentiality (Ec)">Confidentiality Effects</td>
+                <td><div class="slider crve slider3 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="confidentialitySlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="confidentialityValue" style="color: rgb(0, 187, 0);">Minimal</td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="Effects on confidentiality (Ei)">Integrity Effects</td>
+                <td><div class="slider crve slider3 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="integritySlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="integrityValue" style="color: rgb(0, 187, 0);">Minimal</td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="Effects on availability (Ea)">Availability Effects</td>
+                <td><div class="slider crve slider3 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="availabilitySlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="availabilityValue" style="color: rgb(0, 187, 0);">Minimal</td>
+              </tr>
+              <tr bgcolor="#000">
+                <td style="color:#ccc" colspan="2" class="factorLabel">Vulnerability Exposure</td>
+                <td style="color:#ccc" class="factorLabel right" id="exposureValue">0.0123</td>
+              </tr>
+              <tr>
+                <td class="factorLabel">&nbsp;</td>
+                <td class="factorLabel" colspan="2"><button class="add right" id="addVulnerability" name="buttonVulnerability">Add Vulnerability</button></td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <!--------------------------------------------------------------------------></td>
+        <td><div id="vulnerabilities_wrapper" class="dataTables_wrapper"><div class="dataTables_length" id="vulnerabilities_length"><label>Show <select name="vulnerabilities_length" aria-controls="vulnerabilities" class=""><option value="10" selected="selected">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select> entries</label></div><div id="vulnerabilities_filter" class="dataTables_filter"><label>Search:<input class="" placeholder="" aria-controls="vulnerabilities" type="search"></label></div><table id="vulnerabilities" class="cell-border compact stripe fubar dataTable" role="grid" aria-describedby="vulnerabilities_info" style="width: 0px;">
+            <thead>
+              <tr role="row"><th class="sorting" tabindex="0" aria-controls="vulnerabilities" rowspan="1" colspan="1" style="width: 0px;" aria-label="Vulnerability Description: activate to sort column ascending">Vulnerability Description</th><th class="sorting" tabindex="0" aria-controls="vulnerabilities" rowspan="1" colspan="1" style="width: 0px;" aria-label="Template?: activate to sort column ascending">Template?</th><th class="textRight sorting" tabindex="0" aria-controls="vulnerabilities" rowspan="1" colspan="1" style="width: 0px;" aria-label="Capabilities: activate to sort column ascending">Capabilities</th><th class="textRight sorting" tabindex="0" aria-controls="vulnerabilities" rowspan="1" colspan="1" style="width: 0px;" aria-label="Resources: activate to sort column ascending">Resources</th><th class="textRight sorting" tabindex="0" aria-controls="vulnerabilities" rowspan="1" colspan="1" style="width: 0px;" aria-label="Visibility: activate to sort column ascending">Visibility</th><th class="textRight sorting" tabindex="0" aria-controls="vulnerabilities" rowspan="1" colspan="1" style="width: 0px;" aria-label="Effects (CIA): activate to sort column ascending">Effects (CIA)</th><th class="textRight sorting_desc" tabindex="0" aria-controls="vulnerabilities" rowspan="1" colspan="1" style="width: 0px;" aria-sort="descending" aria-label="Exposure: activate to sort column ascending">Exposure</th></tr>
+            </thead>
+            <tfoot>
+              <tr><th rowspan="1" colspan="1"></th><th rowspan="1" colspan="1"></th><th class="textRight" rowspan="1" colspan="1"></th><th class="textRight" rowspan="1" colspan="1"></th><th class="textRight" rowspan="1" colspan="1"></th><th class="textRight black" rowspan="1" colspan="1">AGGREGATE</th><th class="textRight black" rowspan="1" colspan="1">0.0000</th></tr>
+            </tfoot>
+          <tbody><tr class="odd"><td colspan="7" class="dataTables_empty" valign="top">No data available in table</td></tr></tbody></table><div class="dataTables_info" id="vulnerabilities_info" role="status" aria-live="polite">Showing 0 to 0 of 0 entries</div><div class="dataTables_paginate paging_simple_numbers" id="vulnerabilities_paginate"><a class="paginate_button previous disabled" aria-controls="vulnerabilities" data-dt-idx="0" tabindex="0" id="vulnerabilities_previous">Previous</a><span></span><a class="paginate_button next disabled" aria-controls="vulnerabilities" data-dt-idx="1" tabindex="0" id="vulnerabilities_next">Next</a></div></div></td>
+      </tr>
+    </tbody></table>
+  </div>
+  <!-------------------------------------------------------------------------->
+  <!--
+  <div class="tab" id="vtTab" style="display:none">
+    <p>Match vulnerabilities to threats.</p>
+    <table id="vtTabRow" class="tabRow">
+      <tr>
+        <td><table id="vtTable" class="vtMatrix">
+            <tbody>
+            </tbody>
+          </table></td>
+        <td></td>
+      </tr>
+    </table>
+  </div>
+  -->
+  <!-------------------------------------------------------------------------->
+  <div class="tab ui-tabs-panel ui-corner-bottom ui-widget-content" id="controlTab" aria-labelledby="ui-id-9" role="tabpanel" style="display: none;" aria-hidden="true">
+    <p>Enter the characteristics of any controls that mitigate risk from this application.
+    <button id="cLoad" class="button right">Load Template</button>
+    <button id="cSave" class="button right">Save Template</button>
+    </p>
+    <table id="controlTabRow" class="tabRow">
+      <tbody><tr>
+        <td><table id="controlProcessTable" class="processTable" border="0">
+            <tbody>
+              <tr>
+                <td class="factorLabel" title="Description of control">Control Description</td>
+                <td colspan="2"><input id="controlName" name="controlName" class="description ui-autocomplete-input" type="text"></td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="Vulnerabilities mitigated by this control">Mitigates Vulnerabilities</td>
+                <td><select class="scep treeSelect stormFactor" id="mitigatesSelector" style="display: none;"><option id="mitigates_SelectAVulnerability" name="mitigates" value="1" selected="selected">[select a vulnerability]</option></select><span tabindex="0" id="mitigatesSelector-button" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-owns="mitigatesSelector-menu" aria-haspopup="true" class="ui-selectmenu-button ui-selectmenu-button-closed ui-corner-all ui-button ui-widget" style="width: 206px;" aria-activedescendant="ui-id-22" aria-labelledby="ui-id-22" aria-disabled="false"><span class="ui-selectmenu-icon ui-icon ui-icon-triangle-1-s"></span><span class="ui-selectmenu-text">[select a vulnerability]</span></span></td>
+                <td class="factorValue" id="mitigatesValue" style="display: none;"></td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="Type of Control">Control Type</td>
+                <td><select class="scep selectMenu stormFactor" id="controlTypeSelector" style="display: none;"><option id="controlType_acceptRisk" name="controlType" value="Accept Risk" selected="selected">Accept Risk</option><option id="controlType_applyExternalControl" name="controlType" value="Apply External Control">Apply External Control</option><option id="controlType_patchOrUpgrade" name="controlType" value="Patch or Upgrade">Patch or Upgrade</option><option id="controlType_fixConfiguration" name="controlType" value="Fix Configuration">Fix Configuration</option><option id="controlType_reduceConfidence" name="controlType" value="Reduce Confidence">Reduce Confidence</option></select><span tabindex="0" id="controlTypeSelector-button" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-owns="controlTypeSelector-menu" aria-haspopup="true" class="ui-selectmenu-button ui-selectmenu-button-closed ui-corner-all ui-button ui-widget" style="width: 206px;" aria-activedescendant="ui-id-23" aria-labelledby="ui-id-23" aria-disabled="false"><span class="ui-selectmenu-icon ui-icon ui-icon-triangle-1-s"></span><span class="ui-selectmenu-text">Accept Risk</span></span></td>
+                <td class="factorValue" id="controlTypeValue" style="display: none;">Accept Risk</td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="Percent of control implemented for application">Percent Implemented</td>
+                <td><div class="slider scep slider5 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="implementedSlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="implementedValue" style="color: rgb(187, 0, 0);">0%</td>
+              </tr>
+              <tr>
+                <td class="factorLabel" title="Percent of vulnerability remediated by this control">Maximum Percent Remediated</td>
+                <td><div class="slider scep slider5 ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content" id="correctionSlider"><span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: 0%;"></span></div></td>
+                <td class="factorValue" id="correctionValue" style="color: rgb(187, 0, 0);">0%</td>
+              </tr>
+              <tr>
+                <td class="factorLabel">&nbsp;</td>
+                <td class="factorLabel" colspan="2"><button class="add right" id="addControl" name="buttonControl">Add Control</button></td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <!--------------------------------------------------------------------------></td>
+        <td><table id="controls" class="cell-border compact stripe fubar">
+            <thead>
+              <tr>
+                <th>Control Description</th>
+                <th>Template?</th>
+                <th>Mitigates</th>
+                <th>Control Type</th>
+                <th>% Implemented</th>
+                <th>% Maximum</th>
+                <th>% Effective</th>
+              </tr>
+            </thead>
+            <tfoot>
+              <tr>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+              </tr>
+            </tfoot>
+          </table></td>
+      </tr>
+    </tbody></table>
+  </div>
+</div>
+<!---------------------------------------------------------------------------->
+
+<!---------------------------------------------------------------------------->
+
+<!---------------------------------------------------------------------------->
+
+<!---------------------------------------------------------------------------->
+
+<!-- id="steps" -->
+<p class="footnotes"> Simplified Total Risk Management, STORM &amp; 
+StrongCOR are intellectual property of RESCOR LLC; RAPID &amp; RSK are 
+intellectual property of Andrew T. Robinson, ™© 1998-2018 Andrew T. 
+Robinson, 2012-2018 RESCOR LLC, All Rights Reserved</p>
+
+<div style="display: none; position: absolute;" tabindex="-1" role="dialog" class="ui-dialog ui-corner-all ui-widget ui-widget-content ui-front ui-dialog-buttons ui-draggable ui-resizable" aria-describedby="reportDialog" aria-labelledby="ui-id-1"><div class="ui-dialog-titlebar ui-corner-all ui-widget-header ui-helper-clearfix ui-draggable-handle"><span id="ui-id-1" class="ui-dialog-title">Risk Report for Inclusion in ASR</span><button type="button" class="ui-button ui-corner-all ui-widget ui-button-icon-only ui-dialog-titlebar-close" title="Close"><span class="ui-button-icon ui-icon ui-icon-closethick"></span><span class="ui-button-icon-space"> </span>Close</button></div><div class="reportDialog ui-dialog-content ui-widget-content" id="reportDialog">
+	<div id="reportDialogContent">
+    </div>
+</div><div class="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix"><div class="ui-dialog-buttonset"><button type="button" class="ui-button ui-corner-all ui-widget">Finished</button></div></div><div class="ui-resizable-handle ui-resizable-n" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-w" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-sw" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-ne" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-nw" style="z-index: 90;"></div></div><div style="display: none; position: absolute;" tabindex="-1" role="dialog" class="ui-dialog ui-corner-all ui-widget ui-widget-content ui-front ui-dialog-buttons ui-draggable ui-resizable" aria-labelledby="ui-id-2"><div class="ui-dialog-titlebar ui-corner-all ui-widget-header ui-helper-clearfix ui-draggable-handle"><span id="ui-id-2" class="ui-dialog-title">Template Manager</span><button type="button" class="ui-button ui-corner-all ui-widget ui-button-icon-only ui-dialog-titlebar-close" title="Close"><span class="ui-button-icon ui-icon ui-icon-closethick"></span><span class="ui-button-icon-space"> </span>Close</button></div><div class="dialog ui-dialog-content ui-widget-content" id="templateDialog" style="">
+	<div id="templateDialogContent">
+    	<h1>Template Manager</h1>
+        <label for="list">Selected Templates</label> <span id="list" style="font-weight:bold;"></span><br>
+        <p>Select one or more templates below. Templates are applied 
+additively, but there is no guarantee of the order the templates will be
+ applied.</p>
+        <div id="templates_wrapper" class="dataTables_wrapper"><div class="dataTables_length" id="templates_length"><label>Show <select name="templates_length" aria-controls="templates" class=""><option value="10" selected="selected">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select> entries</label></div><div id="templates_filter" class="dataTables_filter"><label>Search:<input class="" placeholder="" aria-controls="templates" type="search"></label></div><table id="templates" style="width: 100%;" class="nowrap stripe dataTable" role="grid" aria-describedby="templates_info">
+        	<thead>
+            	<tr role="row"><th class="sorting_asc" tabindex="0" aria-controls="templates" rowspan="1" colspan="1" style="width: 0px;" aria-sort="ascending" aria-label="Template Name: activate to sort column descending">Template Name</th><th class="sorting" tabindex="0" aria-controls="templates" rowspan="1" colspan="1" style="width: 0px;" aria-label="Scope: activate to sort column ascending">Scope</th><th class="sorting" tabindex="0" aria-controls="templates" rowspan="1" colspan="1" style="width: 0px;" aria-label="Description: activate to sort column ascending">Description</th></tr>
+            </thead>
+            <tfoot>
+            	<tr><td rowspan="1" colspan="1"></td><td rowspan="1" colspan="1"></td><td rowspan="1" colspan="1"></td></tr>
+            </tfoot>
+    	<tbody><tr class="odd"><td colspan="3" class="dataTables_empty" valign="top">No data available in table</td></tr></tbody></table><div class="dataTables_info" id="templates_info" role="status" aria-live="polite">Showing 0 to 0 of 0 entries</div><div class="dataTables_paginate paging_simple_numbers" id="templates_paginate"><a class="paginate_button previous disabled" aria-controls="templates" data-dt-idx="0" tabindex="0" id="templates_previous">Previous</a><span></span><a class="paginate_button next disabled" aria-controls="templates" data-dt-idx="1" tabindex="0" id="templates_next">Next</a></div></div>
+    </div>
+</div><div class="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix"><div class="ui-dialog-buttonset"><button type="button" style="width: 152px;" class="ui-button ui-corner-all ui-widget">Load Selected</button><button type="button" style="width: 163px;" class="ui-button ui-corner-all ui-widget">Quit</button></div></div><div class="ui-resizable-handle ui-resizable-n" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-w" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-sw" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-ne" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-nw" style="z-index: 90;"></div></div><div style="display: none; position: absolute;" tabindex="-1" role="dialog" class="ui-dialog ui-corner-all ui-widget ui-widget-content ui-front ui-dialog-buttons ui-draggable ui-resizable" aria-describedby="saveTemplateDialog" aria-labelledby="ui-id-3"><div class="ui-dialog-titlebar ui-corner-all ui-widget-header ui-helper-clearfix ui-draggable-handle"><span id="ui-id-3" class="ui-dialog-title">Save a Template</span><button type="button" class="ui-button ui-corner-all ui-widget ui-button-icon-only ui-dialog-titlebar-close" title="Close"><span class="ui-button-icon ui-icon ui-icon-closethick"></span><span class="ui-button-icon-space"> </span>Close</button></div><div class="dialog ui-dialog-content ui-widget-content" id="saveTemplateDialog" style="">
+	<div id="saveTemplateDialogContent">
+    	<h1>Save Template</h1>
+        <table id="saveTemplate" style="width:100%">
+            <tbody>
+            	<tr>
+                	<td>Component to Save</td>
+                	<td><input id="saveTemplateComponent" name="saveTemplateComponent" disabled="disabled" type="text"></td>
+                </tr>
+            	<tr>
+                	<td>Template Name</td>
+                	<td><input id="saveTemplateName" name="saveTemplateName" type="text"></td>
+                </tr>
+            </tbody>
+    	</table>
+    </div>
+</div><div class="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix"><div class="ui-dialog-buttonset"><button type="button" style="width: 152px;" class="ui-button ui-corner-all ui-widget">Save</button><button type="button" style="width: 163px;" class="ui-button ui-corner-all ui-widget">Cancel</button></div></div><div class="ui-resizable-handle ui-resizable-n" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-w" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-sw" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-ne" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-nw" style="z-index: 90;"></div></div><div style="display: none; position: absolute;" tabindex="-1" role="dialog" class="ui-dialog ui-corner-all ui-widget ui-widget-content ui-front ui-dialog-buttons ui-draggable ui-resizable" aria-describedby="asrDialog" aria-labelledby="ui-id-4"><div class="ui-dialog-titlebar ui-corner-all ui-widget-header ui-helper-clearfix ui-draggable-handle"><span id="ui-id-4" class="ui-dialog-title">ASR Risk Management Selection</span><button type="button" class="ui-button ui-corner-all ui-widget ui-button-icon-only ui-dialog-titlebar-close" title="Close"><span class="ui-button-icon ui-icon ui-icon-closethick"></span><span class="ui-button-icon-space"> </span>Close</button></div><div class="dialog ui-dialog-content ui-widget-content" id="asrDialog">
+	<div id="asrDialogContent">
+    	<h1>ASR Risk Management Selection</h1>
+        <label for="selected">Selected ASR</label> <span id="selected" style="font-weight:bold;"></span>
+        <table id="asrSelections" style="width:100%" class="nowrap stripe">
+        	<thead>
+            	<tr>
+					<th>Application Name</th>
+					<th>Assessed?</th>
+					<th>IT Owner</th>
+					<th>ENTSEC Resource</th>
+					<th>Description</th>
+				</tr>
+            </thead>
+            <tfoot>
+            	<tr>
+                	<td></td>
+                	<td></td>
+                	<td></td>
+                	<td></td>
+                	<td></td>
+                </tr>
+            </tfoot>
+    	</table>
+    </div>
+</div><div class="ui-dialog-buttonpane ui-widget-content ui-helper-clearfix"><div class="ui-dialog-buttonset"><button type="button" style="width: 152px;" class="ui-button ui-corner-all ui-widget">Load Selected</button><button type="button" style="width: 163px;" class="ui-button ui-corner-all ui-widget">Quit</button></div></div><div class="ui-resizable-handle ui-resizable-n" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-e" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-s" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-w" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-sw" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-ne" style="z-index: 90;"></div><div class="ui-resizable-handle ui-resizable-nw" style="z-index: 90;"></div></div><div class="ui-selectmenu-menu ui-front"><ul aria-hidden="true" aria-labelledby="mitigatesSelector-button" id="mitigatesSelector-menu" role="listbox" tabindex="0" class="ui-menu ui-corner-bottom ui-widget ui-widget-content" aria-activedescendant="ui-id-22" aria-disabled="false"><li class="ui-menu-item"><div id="ui-id-22" tabindex="-1" role="option" class="ui-menu-item-wrapper ui-state-active">[select a vulnerability]</div></li></ul></div><div class="ui-selectmenu-menu ui-front"><ul aria-hidden="true" aria-labelledby="controlTypeSelector-button" id="controlTypeSelector-menu" role="listbox" tabindex="0" class="ui-menu ui-corner-bottom ui-widget ui-widget-content" aria-activedescendant="ui-id-23" aria-disabled="false"><li class="ui-menu-item"><div id="ui-id-23" tabindex="-1" role="option" class="ui-menu-item-wrapper ui-state-active">Accept Risk</div></li><li class="ui-menu-item"><div id="ui-id-24" tabindex="-1" role="option" class="ui-menu-item-wrapper">Apply External Control</div></li><li class="ui-menu-item"><div id="ui-id-25" tabindex="-1" role="option" class="ui-menu-item-wrapper">Patch or Upgrade</div></li><li class="ui-menu-item"><div id="ui-id-26" tabindex="-1" role="option" class="ui-menu-item-wrapper">Fix Configuration</div></li><li class="ui-menu-item"><div id="ui-id-27" tabindex="-1" role="option" class="ui-menu-item-wrapper">Reduce Confidence</div></li></ul></div><ul id="ui-id-28" tabindex="0" class="ui-menu ui-widget ui-widget-content ui-autocomplete ui-front" style="display: none;"></ul><div role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></div><ul id="ui-id-29" tabindex="0" class="ui-menu ui-widget ui-widget-content ui-autocomplete ui-front" style="display: none;"></ul><div role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></div><ul id="ui-id-30" tabindex="0" class="ui-menu ui-widget ui-widget-content ui-autocomplete ui-front" style="display: none;"></ul><div role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></div><ul id="ui-id-31" tabindex="0" class="ui-menu ui-widget ui-widget-content ui-autocomplete ui-front" style="display: none;"></ul><div role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></div></body></html>

@@ -1,0 +1,645 @@
+Required Data
+"Identity & Credential Management
+•    Account Creation
+•    Manage Credential Type
+o (PIV or CAC) and Derived Credentials
+o Cert
+o MFA
+o Password
+•    Establish/Manage Attributes
+o Organization
+o Groups/Roles
+•    Manage/Track Changes in Attributes & Credentials
+•    Track Usage of Credentials
+•    Account Deletion"
+"Privileged Identity & Credential Management
+•    Provisioning
+•    Manage Credential Type
+o (PIV or CAC) and Derived Credentials
+o Cert
+o MFA
+o Password
+•    Establish/Manage Attributes
+o Organization
+o Groups/Roles
+•    Manage/Track Changes in Attributes & Credentials
+•    Track Usage of Credentials
+•    Deprovisioning
+•    Establish and Manage Privileges (Privilege Credentials)
+•    Isolate, Monitor, Record, Audit Privilege Sessions
+•    Control Privileged Actions
+o Commands
+o Tasks
+•    Track Privilege Escalation and Delegation
+•    Monitor, Alert and Respond to Anomalous Behaviors/Activities"
+IP and Domain Reputation (As Indicated by Mail Server Connection)
+"All Devices
+•    DHCP Lease Information Including:
+o MAC
+o IP"
+"DNS - Source IP and Port, Destination IP and Port Date and Time
+•    Content of Query, Response, and Errors – All Record Types
+•    Zone Transfers Request and Response (Audit Log)
+•    Zone Transfers Request and Response (Content)"
+"Passive DNS Log
+•    Tuple (Rrname, Rrtype, Rdata)
+•    Time_First
+•    Time_Last
+•    Count
+•    Bailiwick
+•    Sensor_Id
+•    Zone_Time_First
+•    Zone_Time_Last
+•    Time_First_Ms
+•    Time_Last_Ms
+•    Origin
+•    Count of Questions Asked by Source IP
+•    Count of Questions Asked Overall
+•    Count of Responses by Source IP
+•    Query Size in Bytes
+•    Response Size in Bytes
+•    TTL per Record Returned
+•    Request Was Made Via UDP, TCP or Both
+•    Response Was Made Via UDP, TCP or Both
+•    Passive DNS Source (Used to Identify Which Passive DNS Source Data Came From)"
+"DNS, DHCP, and Wi-Fi
+•    Wi-Fi Supporting Infrastructure Logs Including Security Logs at Info Level
+•    Device Authentication Logs with User Agent
+•    URL Browsing Logs + HTTP Methods (e.g., Post, Get, etc.)
+•    User Authentication Logs
+•    DHCP Lease Information Including MAC, IP
+•    Roaming Logs
+•    Timestamps"
+"DNS, DHCP, and Wi-Fi
+•    Static Network Address Translation Table Mapping as Well as Port Forwards
+o Date and Time
+o Protocol
+o Port
+o Inside Local and Global IP and Port
+o Outside Local and Global IP and Port"
+"•    IDS / IPS / NTA / NDR / SIEM
+Logs
+•    API Activity Logs
+•    Authentication Logs
+•    Firewall Logs
+•    Web Proxy/WAF Logs
+•    Service Metrics
+•    Network Flow Logs
+•    Remote Access/VPN Logs
+•    System/OS Logs
+•    DLP Logs
+•    DNS Query/Response Logs"
+"Routers and Switches
+•    Routing Tables
+•    Routing Changes (Logging All CLI Commands, BGP)
+•    IP Addressing Schema and Implementation"
+"Load Balancer / Reverse Proxy
+Access Logs
+•    Connection Type
+•    Date and Time
+•    Resource ID of the Load Balancer
+•    Client IP:Port
+•    Target IP:Port
+•    Request Processing Time
+•    Target Processing Time
+•    Response Processing Time
+•    Status Code from Load Balancer
+•    Target Status Code
+•    Received Bytes
+•    Bytes Sent
+•    Request
+•    User Agent
+•    SSL Cipher
+•    SSL Protocol
+•    SNI Domain
+•    Matched Rule Priority
+•    Actions Executed
+•    Redirect URL
+•    Error Reason
+•    Target IP:Port List
+•    Target Status Code List
+•    Classification Reason Request Does Not Comply with RFC 7230
+•    Other Implementation Specific Fields"
+"Proxies and Web Content Filters Provides NAT, User, and Gateway IP Address to Provide Enhanced Reporting of Malicious Domains and IP Addresses. In the Case of Web, W3c Format.
+•    Date and Time
+•    Source
+o Hostname
+o IP Address and Port
+o MAC
+•    Destination
+o Hostname
+o IP Address and Port
+o MAC
+•    Web URL Methods / User Agent / Decoded Headers
+•    URL Categories
+•    URL
+•    Permitted, Restricted, Denied"
+"Proxies and Web Content Filters
+•    Policy Updates
+•    Software Updates"
+"General Information
+•    Date and Time
+•    Event, Status, or Error Codes
+•    Service/Command/Application Name
+•    User or System Account Associated with an Event
+•    Device Used (e.g., Source and Destination IPs, Terminal Session ID, Web Browser, etc.)
+Operating System (OS) Events
+•    Start-Up and Shutdown of the System
+•    Start-Up and Shutdown of a Service
+•    Network Connection Changes or Failures
+•    Changes to, or Attempts to Change, System Security Settings and Controls
+OS Audit Records
+•    Log-On Attempts (Success/Failure)
+•    The Function(s) Performed after Logging On (e.g., Reading or Updating a Critical File, Software Installation)
+•    Account Changes (e.g., Account Creation and Deletion, Account Privilege Assignment)
+•    Successful/Failed Use of Privileged Accounts
+Application Account Information
+•    Application Authentication Attempts (Success/Failure)
+•    Application Account Changes (e.g., Account Creation and Deletion, Account Privilege Assignment)
+•    Use of Application Privileges
+Application Operations
+•    Application Startup and Shutdown
+•    Application Failures
+•    Major Application Configuration Changes
+•    Application Transactions, For Example,
+o Email Servers Recording the Sender, Recipients, Subject Name, and Attachment Names for Each Email
+o Web Servers Recording Each URL Requested and the Type of
+Response Provided by the Server"
+"User and Administrator Access to OS Components and Applications
+•    File and Object Access
+•    Audit Log Access (Success/Failure)
+•    System Access and Log Off (Success/Failure)
+•    Privilege Access and Log Off (Success/Failure)
+•    RDP Access and Log Off (Success/Failure)
+•    SMB Access
+•    Installation or Removal of Storage Volumes or Removeable Media
+System Performance and Operational Characteristics
+•    Resource Utilization, Process Status
+•    System Events
+•    Service Status Changes (Start, Stop, Fail, Restart, etc.)
+•    Service Failures and Restarts
+•    Process Creation and Termination
+System Configuration
+•    Changes to Security Configuration (Success/Failure)
+•    Audit Log Cleared
+•    Changes to Accounts
+•    User or Group Management Changes
+•    Scheduled Task Changes
+File Access
+•    Transfer of Data to External Media or Remote Hosts"
+"User and Administrator Access to OS Components and Applications
+•    File and Object Access
+•    Audit Log Access (Success/Failure)
+•    System Access and Log Off (Success/Failure)
+•    Privilege Access and Log Off (Success/Failure)
+•    Remote Terminal or Equivalent Access and Log Off (Success/Failure)
+•    Samba/NFS/(S)FTP or Equivalent Access
+•    Installation or Removal of Applications
+•    Installation or Removal of Storage Volumes or Removeable Media
+System Performance and Operational Characteristics
+•    Resource Utilization, Process Status
+•    System Events
+•    Service Status Changes (Start, Stop, Fail, Restart, etc.)
+•    Service Failures and Restarts
+•    Process Creation and Termination
+System Configuration
+•    Changes to Security Configuration (Success/Failure)
+•    Audit Log Cleared
+•    Changes to Accounts
+•    User or Group Management Changes
+•    Scheduled Task Changes
+File Access
+•    Transfer of Data to External Media or Remote Hosts
+Host Network Communications"
+"User and Administrator Access to OS Components and Applications
+•    File and Object Access
+•    Audit Log Access (Success/Failure)
+•    System Access and Log Off (Success/Failure)
+•    Privilege Access and Log Off (Success/Failure)
+•    Remote Terminal or Equivalent Access and Log Off (Success/Failure)
+•    Samba/NFS/(S)FTP or Equivalent Access
+•    Installation or Removal of Storage Volumes or Removeable Media
+System Performance and Operational Characteristics
+•    Resource Utilization, Process Status
+•    System Events
+•    Service Status Changes (Start, Stop, Fail, Restart, Etc.)
+•    Service Failures and Restarts
+•    Process Creation and Termination
+System Configuration
+•    Changes to Security Configuration (Success/Failure)
+•    Audit Log Cleared
+•    Changes to Accounts
+•    User or Group Management Changes
+•    Scheduled Task Changes
+File Access
+•    Transfer of Data to External Media or Remote Hosts
+Host Network Communications
+•    Listening Network Port and IP Address"
+"Nearly all successful attacks on cloud services result from customer misconfigurations. With that in mind, the logging and monitoring focus should be on:
+•    Any Activity on Breakglass Account(s) (which should never have to be used)
+•    Conditional Access Policy Changes
+•    Changes to Environment Policies (e.g., Azure Subscription, AWS Services, Google Solutions, etc.) in Management Logs
+•    Privileged Role Changes
+•    Virtual Network (VNet) Changes
+•    Deletions of Delete Locks
+•    Changes to Logging Policies
+•    Privileged Identity Management (PIM) and Identity Protection Changes
+•    Changes to Alert Rules (Audit the Auditor)
+•    Key Vault/Key Management Changes
+•    Storage File Access Logs, File, File Hashes
+•    Baseline Deviations for Prod App Tiers
+•    Baseline Deviations for Prod Data Tiers"
+"•    IDS / IPS / NTA / NDR / SIEM
+Logs
+•    API Activity Logs
+•    Authentication Logs
+•    Firewall Logs
+•    Web Proxy/WAF Logs
+•    Service Metrics
+•    Billing Data
+•    Flow Logs
+•    Remote Access/VPN Logs
+•    System/OS Logs
+•    DLP Logs
+•    DNS Query/Response Logs"
+"* CloudTrail
+•    Amazon Cloudwatch Logs
+•    AWS Config
+•    Amazon S3 Access Logs
+•    Amazon VPC Flow Logs
+•    AWS WAF Logs
+•    AWS Shield
+•    AWS Guardduty
+•    AWS Security Hub"
+"•    Azure Active Directory Logs
+* Unified Audit Logs (w/ Advanced Audit Features)
+* Activity Logs"
+"•    Access Transparency Audit Log
+•    Admin Audit Log
+•    Data Studio Audit Log
+•    Drive Audit Log
+•    Email Audit Log
+•    Groups Audit Log
+•    LDAP Audit Log
+•    Login Audit Log
+•    Devices Audit Log
+•    Sail Audit Log
+•    Token Audit Log
+•    User Accounts Audit Log
+•    OAuth Token Audit Log
+•    Security Reports
+•    Usage Logs
+•    Storage Logs
+•    Data Access Logs
+For Organizational and Default Configuration Settings Enable:
+•    Admin Read
+•    Data Read
+•    Data Write"
+Configuration – Scripts or Database Changes Used to Configure Systems, Services on a System, or Applications
+Endpoint Detection & Response (EDR)
+"Configuration Changes
+•    Management Action (Success/Failure)
+•    Admin Login (Success/Failure)"
+"Administrative
+•    Authentication Logons (Success/Failure)
+•    Authentication Logoffs
+•    Privilege Elevation (Success/Failure)
+•    Security Related System Alerts and Failures
+•    User and Group
+o Additions
+o Deletions
+o Modification to Permissions
+•    Unauthorized Access Attempts to Critical Systems and File"
+"Authorization
+All Privileged Operations Including:
+•    “sudo” or runas
+•    Enabling CLI Access
+•    System Administrative Commands
+•    Powershell Execution Commands
+•    Powershell Script Block Logging"
+Content Filtering Policy Updates
+"•    Date and Time Source Hostname
+o IP
+o Port
+•    Destination Hostname
+o IP
+o Port
+•    Description of Malicious Code or Action and Severity
+•    Identity or (Hash) Identifier of the File(s)
+•    Description of the Action Taken (Clean, Quarantine, Delete)
+•    Signature Updates"
+"Indication of the Host that Connected to a Specific URL
+* Date and time
+* IP and Domain Reputation
+* URL
+* Categorization"
+"All Devices
+•    Hash of the Binary / Binaries Running on the Device
+•    Hash of Configs
+•    Firmware
+o Version
+o Created Date
+o Installed Date
+o Manufacturer"
+"Firewalls
+All Events from Firewall. At the very least, if access control lists (ACL) are enabled and the device is filtering traffic:
+•    Action Permit, Teardowns, Closes, Denies, and Drops
+•    Interface
+•    Source
+o Hostname
+o IP Address and Port
+o MAC
+•    Destination
+o Hostname
+o IP Address and Port
+o MAC
+•    Protocol Type
+•    Rule Name and Number Triggered
+•    URL if Applicable, Associated User and User Agent
+•    Date and Time"
+"All Devices: IDs / IPs Alerts and Events
+•    Date and Time
+•    Source
+o Hostname
+o IP Address and Port
+o MAC
+•    Destination
+o Hostname
+o IP Address and Port
+o MAC
+•    Signature Triggered and Associated Details Including:
+o Signature
+o Anomaly
+•    Rate Threshold
+•    Device Name
+•    Type of Event and Category
+•    In the Case of Fortinet Network IPs, Attack Context
+•    (Web / Device) User Agent if Available
+•    Wi-Fi Channel
+•    Wi-Fi Extended Service Set Identifier (ESSID)"
+"VPN Gateway – All Events
+At the very least, for Accepts, Teardowns, Closes, Denies, and Drops:
+•    Date and Time
+•    Source
+o Hostname
+o IP Address and Port
+o MAC
+•    Destination
+o Hostname
+o IP Address and Port
+o MAC
+•    Source IP Address and Port, MAC (Inside Tunnel)
+•    Destination IP Address and Port, MAC (Inside Tunnel)
+•    Authentication Information (Success/Fail with Username and Device with User Agent)
+•    Change in Status of Connections / Tunnel Status
+•    VPN Certificate Status Validation"
+"All Events Related to:
+•    Generation
+•    Revocation
+•    Access
+•    Update
+•    Expiry
+•    Recover
+•    Authentication Success
+•    Authentication Fail
+•    LDAP Logs"""
+"•    Date and Time
+•    Hostname, IP Address, and OS
+"
+"•    Addition of New Users, Especially Privileged Users
+•    Query Being Executed
+•    Query, Status (Response), and Traceback
+o Method
+o Comments or Variables
+o Multiple Embedded Queries
+o Database Alerts or Failures
+o Time to Execute Query
+•    Attempts to Elevate Privileges (Success/Failure)
+•    Changes to the Database Structure
+•    Changes to User Roles or Database Permissions
+•    Database Administrator Actions
+•    Database Logons (Success/Failure)
+•    Failed Logons
+•    Use of Executable Commands
+•    CLI Commands against the Data Base
+•    Database Configuration and Version
+•    Access to Sensitive Information within the Databases such as Keys, Passwords, Privacy Related Data"
+"Web Applications
+•    URL
+•    Headers
+•    HTTP Methods - Request with Body of Data14
+•    HTTP Response with Body of Data"
+"Web Application
+•    Database Queries
+•    Response Codes"
+"Web Application Crashes
+•    Processes
+•    Applications"
+"Web Applications & Middleware
+•    Configuration
+•    Version"
+"•    User Authentication
+o Logon (Success and Failure)
+o Attempts to Obtain Privileged Access (Success and Failure)
+•    User and Administrator/Root Access and Actions of Components and Applications
+o File and Object Access
+o Audit Log Access (Success and Failure)
+o System Access (Failure)
+•    System Performance and Operational Characteristics
+o Resource Utilization,
+Process Status
+o System Events
+o Service Status Changes (e.g., Started, Stopped)
+•    System Configuration
+o Changes to Security Configuration (Success/Failure)
+o Changes to Hypervisor
+o Changes to VMS
+o Changes Made within VMS
+o Audit Log Cleared
+•    Creation and Deployment of VMS
+•    Migration of VMS (e.g., Source and Target Systems, Time, Authorization)
+•    Creation and Deletion of System-Level Objects"
+"EMM (UEM)/MTD Alerts
+•    Date and Time
+•    Alert Type
+•    Failure of Cryptographic Protocols
+•    Failure of Device
+Cryptographic Capabilities (e.g., Trusted Boot Process)
+•    Certificate Validation Failure (Defined in MDM Server Protection Profile)
+•    Alerts from Agent to Server Defined MDM Agent Protection Profile"
+"General:
+•    Date and Time
+Device Data
+•    Device Name
+•    Device Manufacturer and Model
+•    Serial #
+•    Phone #
+•    IMEI, IMSI, OS Version, OS Build
+•    Firmware Version
+•    Device IP Address, Device Root/Jailbreak Status and Reasons
+•    Developer Mode Enabled
+•    Battery/Power Information
+•    Hardware Info (Processor, Memory, Storage)
+•    Last Time Device Synched with Enterprise
+Application Data
+•    Application Manifest (Installed Apps, App Version, Version History and Installation Timestamps), Installation and Data Storage Location
+•    Application Permissions
+•    Application Hash (e.g., SHA- 256)
+•    Running Apps and Processes
+Device Policy Settings
+•    Enrollment Policies
+•    Policies Successfully/Unsuccessfully Applied
+•    Authentication Policies (Password/Pin/Biometric, etc.)
+Device Configuration
+•    Certificates end Related Information (Validity Period, Revocation, etc.)
+•    Device Encryption Configuration
+•    Android Enterprise Settings
+•    System Integrity Status
+Network Configuration
+•    Allowed/Disallowed Networks
+•    Currently Connected Network
+•    Proxy/Tunnel and Per-App VPN Info
+•    Telephony Info (Some of This Is Covered by Carrier Data)
+•    Captive Portals
+•    Wi-Fi SSID
+•    Network MAC Address
+•    Bluetooth
+Event / Audit / Crash Logs
+•    Event Type and ID
+•    Event Date/Timestamp
+•    Success/Failure of Various Services
+•    User Authentication (Success/Failure)
+•    Event Actor and ID (e.g., Admin, System, Device)
+•    Event Change Type (CRUD)
+MTD Agent Info
+•    Agent Activation Status
+•    Threat Detection of Variety of Vulns
+•    Phishing Protection Status
+•    Tampering of Agent, App, or System
+•    Privilege Escalation
+•    MITM Activities
+•    Remediation Actions Taken"
+"•    Log Container Image Sources
+•    Log Changes / Deltas Between Image Source Versions
+•    Log Vulnerability Scan of Container Images, even if No Vulnerabilities Are Discovered
+•    Log Where Containers Are Deployed and Which System They Support"
+"System Status
+•    Resource Utilization
+•    Performance"
+"Raw and Metadata - Filtering Events15
+•    Date and Time
+•    Sent from Sender, from Sender
+•    Recipient
+•    Subject
+•    Email Headers
+•    Rule Triggered – Log of Policies along with Actual Values Including but Not Limited to:
+o DNS Records
+o Phish Campaign Identifier
+o Domain URL"
+"•    Date and Time
+•    Source Hostname
+o IP
+o Port
+•    Destination Hostname
+o IP
+o Port
+•    Description of Malicious Code or Action and Severity
+•    Identity or Identifier of the File(s)
+•    Description of the Action Taken (Clean, Quarantine, Delete)
+•    Signature Updates"
+"Full Packet Capture Data
+•    Decrypted Plaintext
+•    Cleartext"
+"•    Commercial Off the Shelf (COTS) and Custom Applications
+•    User Authentication (Success/Failure)
+•    User and Administrator Application Use:
+o File and Object Access
+o Audit Log Access (Success/Failure)
+o System Access (Failure)
+o Application Transactions (Web Page Hits, Email Sent/Received, File Transfers Completed)
+•    Transaction Logs
+•    System Performance and Operational Characteristics
+o Resource Utilization
+o Process Status
+o Errors (Input Validation, Dis- Allowed Operations)
+o System Events
+o Service Status Changes (e.g., Started, Stopped)
+•    Application Configuration and Version"
+"General – Non-COTS
+•    User Authentication (Success/Failure)
+•    User Access of Application Components
+o File and Object Access
+o Audit Log Access (Success/Failure)
+o System Access (Failure)
+o Application Transactions
+•    Transaction Logs
+•    System Performance and Operational Characteristics
+o Resource Utilization
+o Errors (Input
+Validation, Dis-Allowed Operations) and Exit Codes
+o Process Status
+o Service Status Changes (e.g., Started, Stopped)
+•    Application Configuration and Version, Middleware Configuration and Version
+•    Usage Information, if Applicable
+•    User Request and Response Events, if Applicable"
+"•    Vulnerability Scan Log
+•    Hash of the Binary
+•    Hash of the Executables
+•    Container-Aware Network Monitoring
+•    Container-Aware Process Monitoring
+•    Container-Aware Malware Detection
+•    Filesystem Changes Log
+•    Data Monitoring
+•    Read and/or Writes to Well- Known Directories (e.g., /ETC,
+/USR/BIN, USR/SBIN, etc.)
+•    Creating Symlink
+•    Changes in File/Resource Ownership or Mode Changes (CHMOD)
+•    Access Control Log
+•    Runtime Vulnerability Scan Log Scan for Malware Log
+•    Digital Signature Verification
+•    Unexpected Network Connections or Socket Mutations
+•    Spawned Processes Using Things Like <Execve>
+•    Executing Shell and/or SSH Binaries"
+"Audit Log
+• Account Access Log
+• Account Permission Changes
+• Configuration Log
+• Resource Allocation and Consumption 
+ Registration Changes"
+"•    User and Administrator Access to OS Components and Applications
+o File and Object Access
+o Audit Log Access (Success/Failure)
+o System Access and Log Off (Success/Failure)
+o Privilege Access and Log Off (Success/Failure)
+o RDP Access and Log Off (Success/Failure)
+o SMB Access
+•    System Performance and Operational Characteristics
+o Resource Utilization,
+Process Status
+o System Events
+o Service Status Changes (Start, Stop, Fail, Restart, etc.)
+o Service Failures and Restarts
+o Process Creation and Termination
+•    System Configuration
+o Changes to Security Configuration (Success/Failure)
+o Audit Log Cleared
+o Changes to Accounts User or Group Management Changes
+o Scheduled Task Changes
+•    File Access
+o Transfer of Data to External Media
+•    Powershell Execution Commands
+•    WMI Events
+•    Registry Access
+•    Command-Line Interface (CLI)"
+
+Spam Dictionary Modifications
+"•    Syslog & Syslogd Data
+•    Log4j Data
+•    Sysout Data
+Resource Measurement Facility (RMF) Data
+•    System Management Facility (SMF)16
+•    Output from Integrated Intrusion Detection Services"
+"•    Container User and Service Logs
+•    Container and Application API Audit Logs
+•    Container Management Access Logs
+•    Changes to Container Resources Across Containers and Container Management Environment"
