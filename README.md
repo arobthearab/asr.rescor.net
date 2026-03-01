@@ -12,6 +12,12 @@ ASR is evolving from a legacy prototype (`legacy/`) into a modern React/MUI adju
 2. Rebuild ASR UX in React/MUI using Testing Center conventions where practical.
 3. Track every replication in `docs/REPLICATION-LOG.md` so common modules can be extracted into shared packages later.
 
+## Project Patterns
+
+See [PROJECT-PATTERNS.md](PROJECT-PATTERNS.md) for ASR-specific conventions.
+Cross-project patterns (DB2, secrets, code style, CLI) are in
+[core.rescor.net/docs/PROJECT-PATTERNS.md](../core.rescor.net/docs/PROJECT-PATTERNS.md).
+
 ## Development (frontend)
 - `cd frontend`
 - `npm install`
