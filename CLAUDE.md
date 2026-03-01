@@ -19,5 +19,5 @@ This file defines mandatory patterns for all RESCOR projects:
 
 ## Project-Specific Patterns
 
-See [PROJECT-PATTERNS.md](PROJECT-PATTERNS.md) for ASR-specific conventions
+See [docs/PROJECT-PATTERNS.md](docs/PROJECT-PATTERNS.md) for ASR-specific conventions
 (schema names, quick-reference CLI commands, ASR workflows).
