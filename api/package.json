@@ -1,27 +1,22 @@
 {
-  "name": "asr-graph-api",
+  "name": "asr-api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "migrate": "node scripts/apply-migrations.mjs",
-    "start": "node scripts/vitalsigns.mjs start",
-    "status": "node scripts/vitalsigns.mjs status",
-    "stop": "node scripts/vitalsigns.mjs stop",
-    "restart": "node scripts/vitalsigns.mjs restart",
-    "force": "node scripts/vitalsigns.mjs force",
-    "dev": "npm run migrate && node --watch src/server.mjs",
-    "vitals:start": "node scripts/vitalsigns.mjs start",
-    "vitals:status": "node scripts/vitalsigns.mjs status",
-    "vitals:stop": "node scripts/vitalsigns.mjs stop",
-    "vitals:force": "node scripts/vitalsigns.mjs force",
-    "vitals:restart": "node scripts/vitalsigns.mjs restart"
+    "dev": "node --env-file=../.env --watch src/server.mjs",
+    "start": "node --env-file=../.env src/server.mjs",
+    "cypher:setup": "node --env-file=../.env src/setupDatabase.mjs"
   },
   "dependencies": {
+    "@infisical/sdk": "^4.0.6",
+    "@rescor/core-config": "file:../../core.rescor.net/packages/core-config",
     "@rescor/core-db": "file:../../core.rescor.net/packages/core-db",
     "@rescor/core-utils": "file:../../core.rescor.net/packages/core-utils",
-    "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "js-yaml": "^4.1.1",
+    "neo4j-driver": "^5.28.3",
+    "uuid": "^9.0.0"
   }
 }
