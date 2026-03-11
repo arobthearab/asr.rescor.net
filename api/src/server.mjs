@@ -4,12 +4,12 @@
 
 import express from 'express';
 import cors from 'cors';
-import { createDatabase } from './database.mjs';
+import { createConfiguration, createDatabase } from './database.mjs';
 import { createConfigRouter } from './routes/config.mjs';
 import { createReviewsRouter } from './routes/reviews.mjs';
 import { createAnswersRouter } from './routes/answers.mjs';
 
-const PORT = process.env.ASR_API_PORT || 3100;
+const PORT = 3100;
 
 // ────────────────────────────────────────────────────────────────────
 // Bootstrap
@@ -20,8 +20,9 @@ async function bootstrap() {
   application.use(cors());
   application.use(express.json());
 
-  // Connect to Neo4j
-  const database = await createDatabase();
+  // Configuration-First: Infisical → Neo4j
+  const configuration = await createConfiguration();
+  const database = await createDatabase(configuration);
 
   // Mount routes
   application.use('/api/config', createConfigRouter(database));

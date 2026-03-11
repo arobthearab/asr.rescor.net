@@ -70,19 +70,50 @@ class SessionPerQueryWrapper {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// createDatabase — connect to Neo4j via core-db, return safe wrapper
+// createConfiguration — shared Infisical Configuration instance
+// Exported so other modules can re-use without a second connection.
 // ────────────────────────────────────────────────────────────────────
 
-export async function createDatabase() {
+export async function createConfiguration() {
+  const { Configuration } = await import('@rescor/core-config');
+
+  const configuration = new Configuration({
+    enableInfisical: true,
+    requireInfisical: false,
+    enableCache: true,
+    infisicalOptions: {
+      projectId: process.env.INFISICAL_PROJECT_ID,
+      coreProjectId: process.env.INFISICAL_CORE_PROJECT_ID,
+      clientId: process.env.INFISICAL_CLIENT_ID,
+      clientSecret: process.env.INFISICAL_CLIENT_SECRET,
+    },
+  });
+
+  await configuration.initialize();
+  return configuration;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// createDatabase — connect to Neo4j via core-db, return safe wrapper
+// ────────────────────────────────────────────────────────────────────
+// No direct process.env reads — Configuration-First Runtime Policy.
+
+export async function createDatabase(configuration) {
+  const uri = await configuration.getConfig('neo4j', 'uri') || 'bolt://localhost:17687';
+  const database = await configuration.getConfig('neo4j', 'database') || 'neo4j';
+  const password = await configuration.getConfig('neo4j', 'password');
+
   const operations = new Neo4jOperations({
-    schema: process.env.NEO4J_DATABASE || 'neo4j',
-    uri: process.env.NEO4J_URI || 'bolt://localhost:7687',
-    username: process.env.NEO4J_USERNAME || 'neo4j',
-    password: null,    // Resolved from Infisical or NEO4J_PASSWORD env
+    schema: database,
+    uri,
+    username: 'neo4j',
+    password,
+    config: configuration,
   });
 
   await operations.connect();
-  console.log('Connected to Neo4j (asr database)');
+  console.log(`Connected to Neo4j (${database} database)`);
 
-  return new SessionPerQueryWrapper(operations);
+  const result = new SessionPerQueryWrapper(operations);
+  return result;
 }
