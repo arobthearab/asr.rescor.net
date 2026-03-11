@@ -1,0 +1,29 @@
+# ASR (asr.rescor.net) Services
+# Inherits: infisical, asr-neo4j from core.rescor.net
+
+services:
+  # API Server (Node.js)
+  api:
+    type: npm
+    script: dev
+    cwd: ./api
+    healthCheck: http://localhost:3100/api/health
+    required: true
+    dependsOn: [infisical, asr-neo4j]
+    startupTimeout: 30000
+    healthCheckInterval: 2000
+    env:
+      NODE_ENV: development
+
+  # Frontend (Vite dev server)
+  frontend:
+    type: npm
+    script: dev
+    cwd: ./frontend
+    healthCheck: http://localhost:5174
+    required: false
+    dependsOn: [api]
+    startupTimeout: 20000
+    healthCheckInterval: 2000
+    env:
+      NODE_ENV: development
