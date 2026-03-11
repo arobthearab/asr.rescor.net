@@ -27,7 +27,7 @@ Graph database chosen for policy → CSF → question → answer → gap travers
 
 ## Neo4j Schema — Node Labels
 
-As of 2026-03-04: **102 nodes** (2 Answer nodes from test data).
+As of 2026-03-04: **82 nodes** (2 Answer nodes from test data; Policy nodes added by client overlay).
 
 | Label                  | Count | Key Properties                                               | Uniqueness Constraint        |
 | ---------------------- | ----: | ------------------------------------------------------------ | ---------------------------- |
@@ -36,11 +36,11 @@ As of 2026-03-04: **102 nodes** (2 Answer nodes from test data).
 | `ScoreScale`           |     1 | Template choice-score arrays for 3/4/5-option questions      | —                            |
 | `ClassificationQuestion` |   1 | text, naAllowed                                              | —                            |
 | `ClassificationChoice` |     5 | text, factor (40–100), sortOrder                             | —                            |
-| `Domain`               |     7 | domainIndex, name, policyRefs[], csfRefs[], ferpaNote, soxNote | `domainIndex`              |
+| `Domain`               |     7 | domainIndex, name, csfRefs[]                                 | `domainIndex`              |
 | `Question`             |    48 | domainIndex, questionIndex, text, weightTier, choices[], choiceScores[], naScore | composite `(domainIndex, questionIndex)` |
 | `Review`               |     1 | reviewId (UUID), applicationName, assessor, status, classificationChoice, classificationFactor, rskRaw, rskNormalized, rating, notes, active, created/updated/createdBy/updatedBy | `reviewId` |
 | `Answer`               |     2 | domainIndex, questionIndex, choiceText, rawScore, weightTier, measurement, notes, created/updated | composite index `(domainIndex, questionIndex)` |
-| `Policy`               |    20 | reference, title, description                                | `reference`                  |
+| `Policy`               |     0 | reference, title, description (seeded by client overlay)     | `reference`                  |
 | `CsfSubcategory`       |    12 | code, description                                            | `code`                       |
 | `Gap`                  |     0 | gapId (future)                                               | `gapId`                      |
 | `SraSection`           |     0 | sectionId (future)                                           | `sectionId`                  |
@@ -58,11 +58,16 @@ As of 2026-03-04: **102 nodes** (2 Answer nodes from test data).
 | `(Review)-[:CONTAINS]->(Answer)`                      |     2 | Answers owned by review           |
 | `(Answer)-[:ANSWERS]->(Question)`                     |     2 | Answer → question link            |
 
+### Client Overlay Relationships
+
+| Pattern                                               | Purpose                    |
+| ----------------------------------------------------- | -------------------------- |
+| `(Domain)-[:REFERENCES_POLICY]->(Policy)`             | Policy mapping per domain (client overlay) |
+
 ### Planned Relationships (not yet seeded)
 
 | Pattern                                               | Purpose                    |
 | ----------------------------------------------------- | -------------------------- |
-| `(Domain)-[:REFERENCES_POLICY]->(Policy)`             | Policy mapping per domain  |
 | `(Answer)-[:IDENTIFIES]->(Gap)`                       | Gap register generation    |
 | `(Gap)-[:REFERENCES]->(SraSection)`                   | SRA document cross-ref     |
 
@@ -108,6 +113,9 @@ npm run dev                       # from workspace root
 # Seed Neo4j database
 npm run cypher:setup -w api       # runs all 3 cypher files
 
+# Seed with client overlay (e.g., Stride)
+ASR_OVERLAY_CYPHER_DIR=../asr.k12.com/cypher npm run cypher:setup -w api
+
 # Start API only
 npm run dev -w api               # node --watch api/src/server.mjs
 
@@ -151,7 +159,7 @@ rescor env validate asr.rescor.net --template .env.example
 | ----------------------------- | ------------------------------------- | ------------------------------ |
 | `api/cypher/001-constraints`  | 9 uniqueness + 5 indexes              | Existence constraints commented out (Enterprise-only) |
 | `api/cypher/002-seed-questionnaire` | ScoringConfig, 4 WeightTiers, ScoreScale, ClassificationQuestion + 5 choices, 7 Domains, 48 Questions | Uses MERGE for idempotency |
-| `api/cypher/003-seed-policies-csf`  | 20 Policies, 12 CsfSubcategories, ALIGNS_TO edges | Semicolon-delimited statements |
+| `api/cypher/003-seed-policies-csf`  | 12 CsfSubcategories, ALIGNS_TO edges               | Policies added by client overlay |
 
 ---
 

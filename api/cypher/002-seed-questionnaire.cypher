@@ -70,7 +70,6 @@ MERGE (classification)-[:HAS_CHOICE]->(c:ClassificationChoice {text: choice.text
 
 MERGE (d0:Domain {domainIndex: 0})
   SET d0.name        = 'Governance and Program Management',
-      d0.policyRefs  = ['ISP 1.0', 'ISP 2.1', 'ISP 2.4', 'ISP 2.5'],
       d0.csfRefs     = ['GV.OC', 'GV.PO', 'GV.OV'],
       d0.active      = true,
       d0.updated     = datetime();
@@ -78,7 +77,7 @@ MERGE (d0:Domain {domainIndex: 0})
 MERGE (d0q1:Question {domainIndex: 0, questionIndex: 0})
   SET d0q1.text         = 'Does the application have a designated security owner or steward?',
       d0q1.weightTier   = 'High',
-      d0q1.choices      = ['Yes — named owner in CMDB', 'Yes — informal ownership', 'No — ownership not established'],
+      d0q1.choices      = ['Yes — named owner in asset registry', 'Yes — informal ownership', 'No — ownership not established'],
       d0q1.choiceScores = [20, 50, 70],
       d0q1.naScore      = 1, d0q1.updated = datetime();
 
@@ -167,7 +166,6 @@ MERGE (question)-[:HAS_WEIGHT]->(tier);
 
 MERGE (d1:Domain {domainIndex: 1})
   SET d1.name        = 'Identity and Access Management',
-      d1.policyRefs  = ['ISP 4.1', 'ISP 2.3', 'IISP 8.0'],
       d1.csfRefs     = ['PR.AA'],
       d1.active      = true,
       d1.updated     = datetime();
@@ -175,7 +173,7 @@ MERGE (d1:Domain {domainIndex: 1})
 MERGE (d1q1:Question {domainIndex: 1, questionIndex: 0})
   SET d1q1.text         = 'What authentication mechanism does the application use?',
       d1q1.weightTier   = 'Critical',
-      d1q1.choices      = ['SSO with MFA (Entra ID)', 'SSO without MFA', 'Local authentication with MFA', 'Local authentication without MFA'],
+      d1q1.choices      = ['SSO with MFA (enterprise IdP)', 'SSO without MFA', 'Local authentication with MFA', 'Local authentication without MFA'],
       d1q1.choiceScores = [20, 40, 60, 80],
       d1q1.naScore      = 1, d1q1.updated = datetime();
 
@@ -229,16 +227,14 @@ MERGE (question)-[:HAS_WEIGHT]->(tier);
 
 MERGE (d2:Domain {domainIndex: 2})
   SET d2.name        = 'Data Protection and Privacy',
-      d2.policyRefs  = ['ISP 4.3', 'IISP 2.0', 'IISP 3.0'],
       d2.csfRefs     = ['PR.DS'],
-      d2.ferpaNote   = 'Applications processing student education records must comply with FERPA §99.30 (consent), §99.31 (exceptions), and §99.37 (directory information).',
       d2.active      = true,
       d2.updated     = datetime();
 
 MERGE (d2q1:Question {domainIndex: 2, questionIndex: 0})
-  SET d2q1.text         = 'Does the application process, store, or transmit student education records (FERPA-protected data)?',
+  SET d2q1.text         = 'Does the application process, store, or transmit regulated or sensitive personal data?',
       d2q1.weightTier   = 'Critical',
-      d2q1.choices      = ['No — no education records', 'Yes — incidental processing', 'Yes — primary function', 'Unknown / Not assessed'],
+      d2q1.choices      = ['No — no regulated data', 'Yes — incidental processing', 'Yes — primary function', 'Unknown / Not assessed'],
       d2q1.choiceScores = [20, 40, 60, 80],
       d2q1.naScore      = 1, d2q1.updated = datetime();
 
@@ -271,7 +267,7 @@ MERGE (d2q5:Question {domainIndex: 2, questionIndex: 4})
       d2q5.naScore      = 1, d2q5.updated = datetime();
 
 MERGE (d2q6:Question {domainIndex: 2, questionIndex: 5})
-  SET d2q6.text         = 'Does the application maintain disclosure records as required by FERPA §99.32?',
+  SET d2q6.text         = 'Does the application maintain disclosure or audit records for regulated data sharing?',
       d2q6.weightTier   = 'High',
       d2q6.choices      = ['Yes — automated logging', 'Yes — manual records', 'No — not implemented'],
       d2q6.choiceScores = [20, 50, 70],
@@ -292,9 +288,7 @@ MERGE (question)-[:HAS_WEIGHT]->(tier);
 
 MERGE (d3:Domain {domainIndex: 3})
   SET d3.name        = 'Secure Development and Change Management',
-      d3.policyRefs  = ['ISP 4.4', 'IISP 9.0'],
       d3.csfRefs     = ['PR.PS'],
-      d3.soxNote     = 'SOX §404 ITGC domains CM-1 through CM-6 and PD-1 through PD-4 require documented change management and security testing controls.',
       d3.active      = true,
       d3.updated     = datetime();
 
@@ -336,7 +330,7 @@ MERGE (d3q5:Question {domainIndex: 3, questionIndex: 4})
 MERGE (d3q6:Question {domainIndex: 3, questionIndex: 5})
   SET d3q6.text         = 'Is the application managed through the enterprise endpoint or patch management system, or does it require an out-of-band update mechanism?',
       d3q6.weightTier   = 'High',
-      d3q6.choices      = ['Fully managed via enterprise MDM/SCCM', 'Partially managed — some updates out-of-band', 'Entirely out-of-band (CLI / manual / vendor-pushed)'],
+      d3q6.choices      = ['Fully managed via enterprise MDM/endpoint management', 'Partially managed — some updates out-of-band', 'Entirely out-of-band (CLI / manual / vendor-pushed)'],
       d3q6.choiceScores = [20, 50, 70],
       d3q6.naScore      = 1, d3q6.updated = datetime();
 
@@ -362,7 +356,6 @@ MERGE (question)-[:HAS_WEIGHT]->(tier);
 
 MERGE (d4:Domain {domainIndex: 4})
   SET d4.name        = 'Vulnerability and Threat Management',
-      d4.policyRefs  = ['IISP 7.0', 'ISP 3.2', 'ISP 5.1'],
       d4.csfRefs     = ['ID.RA', 'DE.CM'],
       d4.active      = true,
       d4.updated     = datetime();
@@ -431,7 +424,6 @@ MERGE (question)-[:HAS_WEIGHT]->(tier);
 
 MERGE (d5:Domain {domainIndex: 5})
   SET d5.name        = 'Incident Response and Business Continuity',
-      d5.policyRefs  = ['ISP 6.1', 'ISP 6.2', 'IISP 1.0', 'IISP 10.0'],
       d5.csfRefs     = ['RS.MA', 'RS.AN', 'RC.RP'],
       d5.active      = true,
       d5.updated     = datetime();
@@ -486,7 +478,6 @@ MERGE (question)-[:HAS_WEIGHT]->(tier);
 
 MERGE (d6:Domain {domainIndex: 6})
   SET d6.name        = 'Third-Party and Supply Chain Risk',
-      d6.policyRefs  = ['ISP 2.6'],
       d6.csfRefs     = ['GV.SC'],
       d6.active      = true,
       d6.updated     = datetime();

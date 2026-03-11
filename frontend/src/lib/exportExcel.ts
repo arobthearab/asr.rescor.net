@@ -3,7 +3,7 @@
 // ════════════════════════════════════════════════════════════════════
 // Uses ExcelJS in the browser to produce a downloadable Excel file
 // with a Summary sheet and a detailed Questionnaire sheet.
-// Color palette mirrors the standalone Stride ASR Questionnaire Excel.
+// Color palette mirrors the standalone ASR Questionnaire Excel.
 // Cells are content-locked; formatting is permitted.
 
 import ExcelJS from 'exceljs';
@@ -17,11 +17,11 @@ import { rskAggregate } from './scoring';
 import type { ScoreResult } from './scoring';
 
 // ────────────────────────────────────────────────────────────────────
-// Color palette — matches build_excel_asr.py
+// Color palette
 // ────────────────────────────────────────────────────────────────────
 
 const COLORS = {
-  // Branding
+  // Theme
   titleGreen:  'FF2E7D32',
   subtitleBlue:'FF1565C0',
   headerFill:  'FF37474F',

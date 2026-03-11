@@ -1,6 +1,6 @@
 import { createTheme } from '@mui/material/styles';
 
-export const strideColors = {
+export const brandColors = {
   green: '#2E7D32',
   blue: '#1565C0',
   gray: '#757575',
@@ -13,9 +13,9 @@ export const strideColors = {
 
 export const theme = createTheme({
   palette: {
-    primary: { main: strideColors.blue },
-    secondary: { main: strideColors.green },
-    error: { main: strideColors.gapRed },
+    primary: { main: brandColors.blue },
+    secondary: { main: brandColors.green },
+    error: { main: brandColors.gapRed },
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',

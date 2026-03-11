@@ -22,7 +22,7 @@ import {
   Paper,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { strideColors } from '../theme/theme';
+import { brandColors } from '../theme/theme';
 import { fetchReviews, createReview } from '../lib/apiClient';
 
 // ────────────────────────────────────────────────────────────────────
@@ -30,10 +30,10 @@ import { fetchReviews, createReview } from '../lib/apiClient';
 // ────────────────────────────────────────────────────────────────────
 
 const ratingColorMap: Record<string, string> = {
-  Low: strideColors.ratingLow,
-  Moderate: strideColors.ratingModerate,
-  Elevated: strideColors.ratingElevated,
-  Critical: strideColors.ratingCritical,
+  Low: brandColors.ratingLow,
+  Moderate: brandColors.ratingModerate,
+  Elevated: brandColors.ratingElevated,
+  Critical: brandColors.ratingCritical,
 };
 
 // ────────────────────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ export default function DashboardPage() {
                         label={review.rating}
                         size="small"
                         sx={{
-                          backgroundColor: ratingColorMap[review.rating] || strideColors.gray,
+                          backgroundColor: ratingColorMap[review.rating] || brandColors.gray,
                           color: '#fff',
                         }}
                       />

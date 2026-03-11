@@ -1,5 +1,5 @@
 import { Box, Chip, LinearProgress, Paper, Typography } from '@mui/material';
-import { strideColors } from '../theme/theme';
+import { brandColors } from '../theme/theme';
 import type { ScoringConfiguration, ScoreResult } from '../lib/scoring';
 
 // ════════════════════════════════════════════════════════════════════
@@ -15,10 +15,10 @@ interface ScoreDashboardProps {
 }
 
 const RATING_COLORS: Record<string, string> = {
-  Low: strideColors.ratingLow,
-  Moderate: strideColors.ratingModerate,
-  Elevated: strideColors.ratingElevated,
-  Critical: strideColors.ratingCritical,
+  Low: brandColors.ratingLow,
+  Moderate: brandColors.ratingModerate,
+  Elevated: brandColors.ratingElevated,
+  Critical: brandColors.ratingCritical,
 };
 
 export default function ScoreDashboard({
@@ -28,7 +28,7 @@ export default function ScoreDashboard({
   totalCount,
 }: ScoreDashboardProps) {
   const progressPercent = totalCount > 0 ? (answeredCount / totalCount) * 100 : 0;
-  const ratingColor = RATING_COLORS[score.rating] || strideColors.gray;
+  const ratingColor = RATING_COLORS[score.rating] || brandColors.gray;
 
   return (
     <Paper
@@ -110,7 +110,7 @@ export default function ScoreDashboard({
         {scoringConfiguration.ratingLabels.map((label, index) => {
           const lower = index === 0 ? 0 : scoringConfiguration.ratingThresholds[index - 1];
           const upper = scoringConfiguration.ratingThresholds[index] ?? 100;
-          const color = RATING_COLORS[label] || strideColors.gray;
+          const color = RATING_COLORS[label] || brandColors.gray;
 
           return (
             <Box

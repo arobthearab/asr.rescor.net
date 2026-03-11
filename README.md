@@ -20,8 +20,11 @@ docker compose up -d
 # 2. Install dependencies
 npm install
 
-# 3. Seed Neo4j database
+# 3. Seed Neo4j database (generic defaults)
 npm run cypher:setup -w api
+
+# 3a. Or seed with client-specific overlay (e.g., Stride/k12.com)
+ASR_OVERLAY_CYPHER_DIR=../asr.k12.com/cypher npm run cypher:setup -w api
 
 # 4. Start dev servers
 npm run dev
@@ -48,7 +51,7 @@ frontend/
   src/
     main.tsx       React root (BrowserRouter + ThemeProvider)
     App.tsx        Route definitions
-    theme/         MUI theme (Stride brand colors)
+    theme/         MUI theme (brand colors)
     lib/           Scoring engine mirror, localStorage drafts, API client
     pages/         DashboardPage, ReviewPage
     components/    ClassificationBanner, ScoreDashboard, QuestionCard, DomainSection, ReviewActions
