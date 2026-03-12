@@ -67,6 +67,10 @@ CREATE CONSTRAINT environment_choice_environment_unique IF NOT EXISTS
   FOR (choice:EnvironmentChoice)
   REQUIRE choice.environment IS UNIQUE;
 
+CREATE CONSTRAINT questionnaire_snapshot_version_unique IF NOT EXISTS
+  FOR (snapshot:QuestionnaireSnapshot)
+  REQUIRE snapshot.version IS UNIQUE;
+
 // ─── Existence Constraints (Enterprise Edition only) ─────────────
 // Uncomment when running Neo4j Enterprise:
 //

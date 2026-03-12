@@ -315,6 +315,108 @@ function generateDomainStatements(data) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Snapshot builder — produces the same shape as GET /api/config
+// ────────────────────────────────────────────────────────────────────
+
+function buildSnapshot(data, questionnaireVersion) {
+  const scoreScales = data.score_scales || {};
+  const naScore = data.na_score ?? 1;
+
+  const weightTiers = Object.entries(data.weight_tiers || {}).map(
+    ([name, value]) => ({ name, value })
+  );
+  weightTiers.sort((first, second) => second.value - first.value);
+
+  const classification = data.classification_question
+    ? {
+        text: data.classification_question.text,
+        naAllowed: false,
+        choices: data.classification_question.choices.map((choice, index) => ({
+          text: choice.text,
+          factor: choice.factor,
+          sortOrder: index,
+        })),
+      }
+    : { text: '', naAllowed: false, choices: [] };
+
+  const source = data.source_question
+    ? {
+        text: data.source_question.text,
+        naAllowed: false,
+        choices: data.source_question.choices.map((choice, index) => ({
+          text: choice.text,
+          source: choice.source,
+          sortOrder: index,
+        })),
+      }
+    : { text: '', naAllowed: false, choices: [] };
+
+  const environment = data.environment_question
+    ? {
+        text: data.environment_question.text,
+        naAllowed: false,
+        choices: data.environment_question.choices.map((choice, index) => ({
+          text: choice.text,
+          environment: choice.environment,
+          sortOrder: index,
+        })),
+      }
+    : { text: '', naAllowed: false, choices: [] };
+
+  const archetypes = Object.entries(data.deployment_archetypes || {}).map(
+    ([code, meta], index) => ({
+      code,
+      label: meta.label,
+      description: meta.description,
+      source: meta.source,
+      environment: meta.environment,
+      sortOrder: index,
+    })
+  );
+
+  const domains = (data.domains || []).map((domain, domainIndex) => ({
+    domainIndex,
+    name: domain.name,
+    policyRefs: domain.policy_refs || [],
+    csfRefs: domain.csf_refs || [],
+    questions: domain.questions.map((question, questionIndex) => {
+      const choiceTexts = question.choices.map((choice) => choice.text);
+      const choiceScores = deriveChoiceScores(question.choices, scoreScales);
+      return {
+        domainIndex,
+        questionIndex,
+        text: question.text,
+        weightTier: question.weight,
+        choices: choiceTexts,
+        choiceScores,
+        naScore,
+        applicability: question.applicability || [],
+      };
+    }),
+  }));
+
+  const snapshot = {
+    questionnaireVersion,
+    questionnaireLabel: data.questionnaire_label || questionnaireVersion,
+    scoringConfiguration: {
+      dampingFactor: 4,
+      rawMax: 134,
+      ratingThresholds: [25, 50, 75],
+      ratingLabels: ['Low', 'Moderate', 'Elevated', 'Critical'],
+      questionnaireVersion,
+    },
+    classification,
+    source,
+    environment,
+    archetypes,
+    domains,
+    weightTiers,
+  };
+
+  return snapshot;
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Orphan cleanup — remove questions/domains that no longer exist
 // ────────────────────────────────────────────────────────────────────
 
@@ -399,6 +501,34 @@ async function configureFromYaml() {
           config.updated = datetime()
     `,
     params: { questionnaireVersion },
+  });
+
+  // Store complete questionnaire snapshot for historical review support
+  const snapshot = buildSnapshot(data, questionnaireVersion);
+  const questionnaireLabel = data.questionnaire_label || questionnaireVersion;
+  allStatements.push({
+    cypher: `
+      MERGE (snapshot:QuestionnaireSnapshot {version: $version})
+        ON CREATE SET snapshot.label   = $label,
+                      snapshot.data    = $data,
+                      snapshot.created = datetime()
+        ON MATCH  SET snapshot.label   = $label,
+                      snapshot.data    = $data
+    `,
+    params: {
+      version: questionnaireVersion,
+      label: questionnaireLabel,
+      data: JSON.stringify(snapshot),
+    },
+  });
+
+  // Also stamp the label on ScoringConfig for the versions endpoint
+  allStatements.push({
+    cypher: `
+      MATCH (config:ScoringConfig {configId: 'default'})
+      SET config.questionnaireLabel = $questionnaireLabel
+    `,
+    params: { questionnaireLabel },
   });
 
   console.log(`Generated ${allStatements.length} Cypher statements (version: ${questionnaireVersion})`);

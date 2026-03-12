@@ -27,20 +27,26 @@ Graph database chosen for policy → CSF → question → answer → gap travers
 
 ## Neo4j Schema — Node Labels
 
-As of 2026-03-04: **82 nodes** (2 Answer nodes from test data; Policy nodes added by client overlay).
+As of 2026-03-12: **82+ nodes** (Policy nodes added by client overlay; snapshots added per import).
 
 | Label                  | Count | Key Properties                                               | Uniqueness Constraint        |
 | ---------------------- | ----: | ------------------------------------------------------------ | ---------------------------- |
-| `ScoringConfig`        |     1 | configId, dampingFactor=4, rawMax=134, ratingThresholds, ratingLabels | `configId`            |
+| `ScoringConfig`        |     1 | configId, dampingFactor=4, rawMax=134, ratingThresholds, ratingLabels, questionnaireVersion, questionnaireLabel | `configId`            |
 | `WeightTier`           |     4 | name (Critical/High/Medium/Info), value (100/67/33/13)       | `name`                       |
 | `ScoreScale`           |     1 | Template choice-score arrays for 3/4/5-option questions      | —                            |
 | `ClassificationQuestion` |   1 | text, naAllowed                                              | —                            |
 | `ClassificationChoice` |     5 | text, factor (40–100), sortOrder                             | —                            |
-| `Domain`               |     7 | domainIndex, name, csfRefs[]                                 | `domainIndex`              |
-| `Question`             |    48 | domainIndex, questionIndex, text, weightTier, choices[], choiceScores[], naScore | composite `(domainIndex, questionIndex)` |
-| `Review`               |     1 | reviewId (UUID), applicationName, assessor, status, classificationChoice, classificationFactor, rskRaw, rskNormalized, rating, notes, active, created/updated/createdBy/updatedBy | `reviewId` |
-| `Answer`               |     2 | domainIndex, questionIndex, choiceText, rawScore, weightTier, measurement, notes, created/updated | composite index `(domainIndex, questionIndex)` |
-| `Policy`               |     0 | reference, title, tag, description (seeded by client overlay) | `reference`                  |
+| `Domain`               |    11 | domainIndex, name, csfRefs[]                                 | `domainIndex`              |
+| `Question`             |    82 | domainIndex, questionIndex, text, weightTier, choices[], choiceScores[], naScore, applicability[] | composite `(domainIndex, questionIndex)` |
+| `Review`               |     — | reviewId (UUID), applicationName, assessor, status, classificationChoice, classificationFactor, sourceChoice, environmentChoice, deploymentArchetype, questionnaireVersion, rskRaw, rskNormalized, rating, notes, active, created/updated/createdBy/updatedBy | `reviewId` |
+| `Answer`               |     — | domainIndex, questionIndex, choiceText, rawScore, weightTier, measurement, notes, created/updated | composite index `(domainIndex, questionIndex)` |
+| `QuestionnaireSnapshot`|     — | version (12-char SHA), label, data (JSON blob), created      | `version`                    |
+| `SourceQuestion`       |     1 | questionId='source', text, naAllowed                         | `questionId`                 |
+| `SourceChoice`         |     3 | source (INTERNAL/EXTERNAL/OTS), text, sortOrder              | `source`                     |
+| `EnvironmentQuestion`  |     1 | questionId='environment', text, naAllowed                    | `questionId`                 |
+| `EnvironmentChoice`    |     3 | environment (CLOUD/ONPREMISE/HYBRID), text, sortOrder        | `environment`                |
+| `DeploymentArchetype`  |     9 | code, label, description, source, environment, sortOrder     | `code`                       |
+| `Policy`               |     — | reference, title, tag, description (seeded by client overlay) | `reference`                  |
 | `CsfSubcategory`       |    12 | code, description                                            | `code`                       |
 | `Gap`                  |     0 | gapId (future)                                               | `gapId`                      |
 | `SraSection`           |     0 | sectionId (future)                                           | `sectionId`                  |

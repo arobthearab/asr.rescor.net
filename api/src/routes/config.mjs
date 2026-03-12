@@ -13,63 +13,84 @@ export function createConfigRouter(database) {
   const router = Router();
 
   // ── Full questionnaire structure ───────────────────────────────
-  router.get('/', async (_request, response) => {
+  // Supports ?version=<hash> to retrieve a historical snapshot.
+  router.get('/', async (request, response) => {
     let statusCode = 200;
     let body = null;
 
     try {
-      const scoringConfiguration = await loadScoringConfiguration(database);
+      const requestedVersion = request.query.version || null;
 
-      const classificationResult = await database.query(
-        `MATCH (classification:ClassificationQuestion)-[:HAS_CHOICE]->(choice:ClassificationChoice)
-         RETURN classification, choice
-         ORDER BY choice.sortOrder`
-      );
+      if (requestedVersion) {
+        // ── Historical snapshot lookup ───────────────────────────
+        const snapshotResult = await database.query(
+          `MATCH (snapshot:QuestionnaireSnapshot {version: $version})
+           RETURN snapshot.data AS data, snapshot.label AS label`,
+          { version: requestedVersion }
+        );
 
-      const sourceResult = await database.query(
-        `MATCH (sourceQuestion:SourceQuestion)-[:HAS_CHOICE]->(choice:SourceChoice)
-         RETURN sourceQuestion, choice
-         ORDER BY choice.sortOrder`
-      );
+        if (snapshotResult.length === 0) {
+          statusCode = 404;
+          body = { error: `Questionnaire version "${requestedVersion}" not found` };
+        } else {
+          body = JSON.parse(snapshotResult[0].data);
+        }
+      } else {
+        // ── Current (live) questionnaire ──────────────────────────
+        const scoringConfiguration = await loadScoringConfiguration(database);
 
-      const environmentResult = await database.query(
-        `MATCH (environmentQuestion:EnvironmentQuestion)-[:HAS_CHOICE]->(choice:EnvironmentChoice)
-         RETURN environmentQuestion, choice
-         ORDER BY choice.sortOrder`
-      );
+        const classificationResult = await database.query(
+          `MATCH (classification:ClassificationQuestion)-[:HAS_CHOICE]->(choice:ClassificationChoice)
+           RETURN classification, choice
+           ORDER BY choice.sortOrder`
+        );
 
-      const archetypeResult = await database.query(
-        `MATCH (archetype:DeploymentArchetype)
-         RETURN archetype
-         ORDER BY archetype.sortOrder`
-      );
+        const sourceResult = await database.query(
+          `MATCH (sourceQuestion:SourceQuestion)-[:HAS_CHOICE]->(choice:SourceChoice)
+           RETURN sourceQuestion, choice
+           ORDER BY choice.sortOrder`
+        );
 
-      const domainsResult = await database.query(
-        `MATCH (domain:Domain)
-         WHERE domain.active = true
-         OPTIONAL MATCH (domain)<-[:BELONGS_TO]-(question:Question)
-         WHERE question.active = true
-         RETURN domain, collect(question) AS questions
-         ORDER BY domain.domainIndex`
-      );
+        const environmentResult = await database.query(
+          `MATCH (environmentQuestion:EnvironmentQuestion)-[:HAS_CHOICE]->(choice:EnvironmentChoice)
+           RETURN environmentQuestion, choice
+           ORDER BY choice.sortOrder`
+        );
 
-      const weightTiersResult = await database.query(
-        `MATCH (tier:WeightTier) RETURN tier ORDER BY tier.value DESC`
-      );
+        const archetypeResult = await database.query(
+          `MATCH (archetype:DeploymentArchetype)
+           RETURN archetype
+           ORDER BY archetype.sortOrder`
+        );
 
-      const policyLookupMap = await loadPolicyLookup(database);
-      const csfTooltipMap = await loadCsfTooltips(database);
+        const domainsResult = await database.query(
+          `MATCH (domain:Domain)
+           WHERE domain.active = true
+           OPTIONAL MATCH (domain)<-[:BELONGS_TO]-(question:Question)
+           WHERE question.active = true
+           RETURN domain, collect(question) AS questions
+           ORDER BY domain.domainIndex`
+        );
 
-      body = {
-        scoringConfiguration,
-        questionnaireVersion: scoringConfiguration.questionnaireVersion || null,
-        classification: buildClassificationResponse(classificationResult),
-        source: buildTranscendentalResponse(sourceResult, 'sourceQuestion', 'source'),
-        environment: buildTranscendentalResponse(environmentResult, 'environmentQuestion', 'environment'),
-        archetypes: archetypeResult.map((record) => record.archetype || record),
-        domains: buildDomainsResponse(domainsResult, policyLookupMap, csfTooltipMap),
-        weightTiers: weightTiersResult.map((record) => record.tier || record),
-      };
+        const weightTiersResult = await database.query(
+          `MATCH (tier:WeightTier) RETURN tier ORDER BY tier.value DESC`
+        );
+
+        const policyLookupMap = await loadPolicyLookup(database);
+        const csfTooltipMap = await loadCsfTooltips(database);
+
+        body = {
+          scoringConfiguration,
+          questionnaireVersion: scoringConfiguration.questionnaireVersion || null,
+          questionnaireLabel: scoringConfiguration.questionnaireLabel || null,
+          classification: buildClassificationResponse(classificationResult),
+          source: buildTranscendentalResponse(sourceResult, 'sourceQuestion', 'source'),
+          environment: buildTranscendentalResponse(environmentResult, 'environmentQuestion', 'environment'),
+          archetypes: archetypeResult.map((record) => record.archetype || record),
+          domains: buildDomainsResponse(domainsResult, policyLookupMap, csfTooltipMap),
+          weightTiers: weightTiersResult.map((record) => record.tier || record),
+        };
+      }
     } catch (error) {
       statusCode = 500;
       body = { error: error.message };
@@ -85,6 +106,40 @@ export function createConfigRouter(database) {
 
     try {
       body = await loadScoringConfiguration(database);
+    } catch (error) {
+      statusCode = 500;
+      body = { error: error.message };
+    }
+
+    response.status(statusCode).json(body);
+  });
+
+  // ── Available questionnaire versions ───────────────────────────
+  router.get('/versions', async (_request, response) => {
+    let statusCode = 200;
+    let body = null;
+
+    try {
+      const scoringConfiguration = await loadScoringConfiguration(database);
+      const currentVersion = scoringConfiguration.questionnaireVersion || null;
+
+      const result = await database.query(
+        `MATCH (snapshot:QuestionnaireSnapshot)
+         RETURN snapshot.version AS version,
+                snapshot.label   AS label,
+                snapshot.created AS created
+         ORDER BY snapshot.created DESC`
+      );
+
+      body = {
+        currentVersion,
+        versions: result.map((record) => ({
+          version: record.version,
+          label: record.label,
+          created: record.created,
+          current: record.version === currentVersion,
+        })),
+      };
     } catch (error) {
       statusCode = 500;
       body = { error: error.message };

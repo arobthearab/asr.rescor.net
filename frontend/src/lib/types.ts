@@ -84,12 +84,20 @@ export interface DeploymentArchetype {
 export interface AppConfiguration {
   scoringConfiguration: import('./scoring').ScoringConfiguration;
   questionnaireVersion: string | null;
+  questionnaireLabel: string | null;
   classification: ClassificationConfig;
   source: SourceConfig;
   environment: EnvironmentConfig;
   archetypes: DeploymentArchetype[];
   domains: DomainConfig[];
   weightTiers: WeightTier[];
+}
+
+export interface QuestionnaireVersion {
+  version: string;
+  label: string;
+  created: string;
+  current: boolean;
 }
 
 export interface AnswerState {

@@ -30,6 +30,24 @@ export async function fetchConfiguration(): Promise<unknown> {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// fetchConfigurationVersion — load a historical questionnaire snapshot
+// ────────────────────────────────────────────────────────────────────
+
+export async function fetchConfigurationVersion(version: string): Promise<unknown> {
+  const response = await fetch(`${BASE_URL}/config?version=${encodeURIComponent(version)}`);
+  return handleResponse(response);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// fetchVersions — list available questionnaire versions
+// ────────────────────────────────────────────────────────────────────
+
+export async function fetchVersions(): Promise<unknown> {
+  const response = await fetch(`${BASE_URL}/config/versions`);
+  return handleResponse(response);
+}
+
+// ────────────────────────────────────────────────────────────────────
 // fetchReviews — list all active reviews
 // ────────────────────────────────────────────────────────────────────
 

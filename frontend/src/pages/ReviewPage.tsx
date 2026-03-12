@@ -17,11 +17,13 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ClassificationBanner from '../components/ClassificationBanner';
 import SourceBanner from '../components/SourceBanner';
 import EnvironmentBanner from '../components/EnvironmentBanner';
+import VersionBanner from '../components/VersionBanner';
 import DomainSection from '../components/DomainSection';
 import ScoreDashboard from '../components/ScoreDashboard';
 import ReviewActions from '../components/ReviewActions';
 import {
   fetchConfiguration,
+  fetchConfigurationVersion,
   fetchReview,
   saveAnswers,
   submitReview,
@@ -60,6 +62,8 @@ export default function ReviewPage() {
 
   // ── Configuration (loaded once) ───────────────────────────────
   const [configuration, setConfiguration] = useState<AppConfiguration | null>(null);
+  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
+  const [isHistoricalVersion, setIsHistoricalVersion] = useState(false);
 
   // ── Review data ───────────────────────────────────────────────
   const [review, setReview] = useState<ReviewDetail | null>(null);
@@ -144,11 +148,29 @@ export default function ReviewPage() {
           reviewId ? fetchReview(reviewId) : Promise.resolve(null),
         ]);
 
-        const appConfig = configData as AppConfiguration;
-        setConfiguration(appConfig);
+        const latestConfig = configData as AppConfiguration;
+        setCurrentVersion(latestConfig.questionnaireVersion);
+
+        // Determine the effective config — may differ if the review
+        // was created on an older questionnaire version.
+        let appConfig = latestConfig;
 
         if (reviewData && (reviewData as Record<string, unknown>).review) {
           const detail = reviewData as { review: Record<string, unknown>; answers: Array<{ answer: Record<string, unknown> | null; question: Record<string, unknown> | null }> };
+          const pinnedVersion = (detail.review.questionnaireVersion as string) || null;
+
+          if (pinnedVersion && pinnedVersion !== latestConfig.questionnaireVersion) {
+            try {
+              const historicalData = await fetchConfigurationVersion(pinnedVersion);
+              appConfig = historicalData as AppConfiguration;
+              setIsHistoricalVersion(true);
+            } catch {
+              // Snapshot not available — fall back to current config
+            }
+          }
+
+          setConfiguration(appConfig);
+
           const reviewRecord: ReviewDetail = {
             reviewId: (detail.review.reviewId as string) || '',
             applicationName: (detail.review.applicationName as string) || '',
@@ -215,6 +237,8 @@ export default function ReviewPage() {
           }
 
           setAnswers(answerMap);
+        } else {
+          setConfiguration(latestConfig);
         }
       } catch (error) {
         setErrorMessage((error as Error).message);
@@ -442,6 +466,14 @@ export default function ReviewPage() {
         <Grid container spacing={3}>
           {/* Left column — questionnaire */}
           <Grid size={{ xs: 12, md: 9 }}>
+            {isHistoricalVersion && (
+              <VersionBanner
+                reviewLabel={configuration.questionnaireLabel}
+                reviewVersion={configuration.questionnaireVersion}
+                currentVersion={currentVersion}
+              />
+            )}
+
             <ClassificationBanner
               classification={configuration.classification}
               selectedChoice={classificationChoice}

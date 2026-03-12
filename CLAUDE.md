@@ -41,3 +41,4 @@ See [docs/PROJECT-PATTERNS.md](docs/PROJECT-PATTERNS.md) for ASR-specific conven
 ## Completed Plans
 
 - [Source × Environment Deployment Taxonomy](docs/PLAN-SOURCE-ENVIRONMENT-TAXONOMY.md) — 9 compound archetypes (Source × Environment)
+- [Questionnaire Versioning](docs/PLAN-QUESTIONNAIRE-VERSIONING.md) — Historical checklist snapshots (Phases 1–2 implemented)
