@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { loadScoringConfiguration } from '../scoring.mjs';
+import { authorize, requireOwnershipOrAdmin } from '../middleware/authorize.mjs';
 
 // ────────────────────────────────────────────────────────────────────
 // getAssessor — derive assessor identity from authenticated user
@@ -34,17 +35,40 @@ export function createReviewsRouter(database) {
   const router = Router();
 
   // ── List reviews ────────────────────────────────────────────────
-  router.get('/', async (_request, response) => {
+  // Admins see all active reviews; other roles see only reviews
+  // scoped to their tenant (via SCOPED_TO).  If no tenant data
+  // exists yet (pre-migration), fall back to returning all.
+  router.get('/', async (request, response) => {
     let statusCode = 200;
     let body = [];
 
     try {
-      const result = await database.query(
-        `MATCH (review:Review)
-         WHERE review.active = true
-         RETURN review
-         ORDER BY review.updated DESC`
-      );
+      const userRoles = request.user?.roles || [];
+      const isAdmin = userRoles.includes('admin');
+      const tenantId = request.user?.tenantId || null;
+
+      let cypher;
+      let parameters;
+
+      if (isAdmin) {
+        cypher = `MATCH (review:Review)
+                  WHERE review.active = true
+                  RETURN review
+                  ORDER BY review.updated DESC`;
+        parameters = {};
+      } else {
+        cypher = `MATCH (review:Review)
+                  WHERE review.active = true
+                  AND (
+                    (review)-[:SCOPED_TO]->(:Tenant {tenantId: $tenantId})
+                    OR NOT EXISTS { (review)-[:SCOPED_TO]->(:Tenant) }
+                  )
+                  RETURN review
+                  ORDER BY review.updated DESC`;
+        parameters = { tenantId };
+      }
+
+      const result = await database.query(cypher, parameters);
       body = result.map((record) => record.review || record);
     } catch (error) {
       statusCode = 500;
@@ -89,7 +113,7 @@ export function createReviewsRouter(database) {
   });
 
   // ── Create review ──────────────────────────────────────────────
-  router.post('/', async (request, response) => {
+  router.post('/', authorize('admin', 'reviewer'), async (request, response) => {
     let statusCode = 201;
     let body = null;
     const reviewId = uuidv4();
@@ -98,6 +122,7 @@ export function createReviewsRouter(database) {
     try {
       const scoringConfiguration = await loadScoringConfiguration(database);
       const questionnaireVersion = scoringConfiguration.questionnaireVersion || null;
+      const tenantId = request.user?.tenantId || null;
 
       const result = await database.query(
         `CREATE (review:Review {
@@ -121,6 +146,11 @@ export function createReviewsRouter(database) {
            updated: $now,
            updatedBy: $assessor
          })
+         WITH review
+         OPTIONAL MATCH (tenant:Tenant {tenantId: $tenantId})
+         FOREACH (_ IN CASE WHEN tenant IS NOT NULL THEN [1] ELSE [] END |
+           MERGE (review)-[:SCOPED_TO]->(tenant)
+         )
          RETURN review`,
         {
           reviewId,
@@ -128,6 +158,7 @@ export function createReviewsRouter(database) {
           assessor: getAssessor(request),
           notes: request.body.notes || '',
           questionnaireVersion,
+          tenantId,
           now,
         }
       );
@@ -141,7 +172,7 @@ export function createReviewsRouter(database) {
   });
 
   // ── Update classification ──────────────────────────────────────
-  router.patch('/:reviewId/classification', async (request, response) => {
+  router.patch('/:reviewId/classification', authorize('admin', 'reviewer'), requireOwnershipOrAdmin(database), async (request, response) => {
     let statusCode = 200;
     let body = null;
 
@@ -177,7 +208,7 @@ export function createReviewsRouter(database) {
   });
 
   // ── Update deployment (source × environment) ──────────────────
-  router.patch('/:reviewId/deployment', async (request, response) => {
+  router.patch('/:reviewId/deployment', authorize('admin', 'reviewer'), requireOwnershipOrAdmin(database), async (request, response) => {
     let statusCode = 200;
     let body = null;
 
@@ -222,7 +253,7 @@ export function createReviewsRouter(database) {
   });
 
   // ── Submit review ──────────────────────────────────────────────
-  router.post('/:reviewId/submit', async (request, response) => {
+  router.post('/:reviewId/submit', authorize('admin', 'reviewer'), requireOwnershipOrAdmin(database), async (request, response) => {
     let statusCode = 200;
     let body = null;
 
@@ -256,7 +287,7 @@ export function createReviewsRouter(database) {
   });
 
   // ── Soft delete ────────────────────────────────────────────────
-  router.delete('/:reviewId', async (request, response) => {
+  router.delete('/:reviewId', authorize('admin', 'reviewer'), requireOwnershipOrAdmin(database), async (request, response) => {
     let statusCode = 204;
     let body = null;
 
@@ -281,7 +312,7 @@ export function createReviewsRouter(database) {
   });
 
   // ── Rename review ──────────────────────────────────────────────
-  router.patch('/:reviewId/rename', async (request, response) => {
+  router.patch('/:reviewId/rename', authorize('admin', 'reviewer'), requireOwnershipOrAdmin(database), async (request, response) => {
     let statusCode = 200;
     let body = null;
 

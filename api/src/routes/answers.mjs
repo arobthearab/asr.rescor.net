@@ -9,6 +9,7 @@ import {
   loadScoringConfiguration,
   ratingFromNormalized,
 } from '../scoring.mjs';
+import { authorize, requireOwnershipOrAdmin } from '../middleware/authorize.mjs';
 
 // ────────────────────────────────────────────────────────────────────
 // createAnswersRouter
@@ -18,7 +19,7 @@ export function createAnswersRouter(database) {
   const router = Router();
 
   // ── Save answers (bulk upsert) ─────────────────────────────────
-  router.put('/:reviewId/answers', async (request, response) => {
+  router.put('/:reviewId/answers', authorize('admin', 'reviewer'), requireOwnershipOrAdmin(database), async (request, response) => {
     let statusCode = 200;
     let body = null;
     const { reviewId } = request.params;

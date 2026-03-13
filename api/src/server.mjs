@@ -9,6 +9,8 @@ import { createConfigRouter } from './routes/config.mjs';
 import { createReviewsRouter } from './routes/reviews.mjs';
 import { createAnswersRouter } from './routes/answers.mjs';
 import { createAuthenticationMiddleware } from './middleware/authenticate.mjs';
+import { authorize } from './middleware/authorize.mjs';
+import { UserStore } from './persistence/UserStore.mjs';
 
 const PORT = 3100;
 
@@ -24,13 +26,14 @@ async function bootstrap() {
   // Configuration-First: Infisical → Neo4j
   const configuration = await createConfiguration();
   const database = await createDatabase(configuration);
+  const userStore = new UserStore(database);
 
   // Auth config from Infisical (optional — absent in dev = auth-optional)
   const tenantId = await configuration.getConfig('entra', 'tenantId') || null;
   const clientId = await configuration.getConfig('entra', 'clientId') || null;
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
-  const authenticate = createAuthenticationMiddleware({ isDevelopment, tenantId, clientId });
+  const authenticate = createAuthenticationMiddleware({ isDevelopment, tenantId, clientId, userStore });
 
   // Health check (unauthenticated)
   application.get('/api/health', (_request, response) => {
@@ -40,10 +43,22 @@ async function bootstrap() {
   // Mount authentication on all /api/* except health
   application.use('/api', authenticate);
 
-  // Mount routes
+  // ── Auth / user info ────────────────────────────────────────────
+  application.get('/api/auth/me', (request, response) => {
+    const user = request.user;
+    response.json({
+      sub: user.sub,
+      preferred_username: user.preferred_username,
+      email: user.email,
+      roles: user.roles,
+      tenantId: user.tenantId || null,
+    });
+  });
+
+  // Mount routes — config is public (read), reviews + answers gated
   application.use('/api/config', createConfigRouter(database));
-  application.use('/api/reviews', createReviewsRouter(database));
-  application.use('/api/reviews', createAnswersRouter(database));
+  application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createReviewsRouter(database));
+  application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createAnswersRouter(database));
 
   application.listen(PORT, () => {
     console.log(`ASR API listening on port ${PORT}`);

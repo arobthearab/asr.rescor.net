@@ -18,16 +18,18 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 /**
  * @param {object} options
- * @param {boolean} options.isDevelopment — when true, token is optional
- * @param {string}  options.tenantId     — Entra ID tenant ID (GUID)
- * @param {string}  options.clientId     — Entra ID app registration client ID
+ * @param {boolean}    options.isDevelopment — when true, token is optional
+ * @param {string}     options.tenantId     — Entra ID tenant ID (GUID)
+ * @param {string}     options.clientId     — Entra ID app registration client ID
+ * @param {UserStore}  [options.userStore]  — optional UserStore for auto-registration
  */
-export function createAuthenticationMiddleware({ isDevelopment = false, tenantId, clientId }) {
+export function createAuthenticationMiddleware({ isDevelopment = false, tenantId, clientId, userStore = null }) {
   const developmentUser = Object.freeze({
     sub: 'dev-user-0000',
     preferred_username: 'developer',
     email: 'dev@rescor.local',
-    roles: ['assessor'],
+    roles: ['admin'],
+    tenantId: tenantId || 'dev',
     iss: 'asr-dev',
     aud: 'asr-api',
   });
@@ -49,6 +51,7 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
     if (!hasToken) {
       if (isDevelopment) {
         request.user = { ...developmentUser };
+        if (userStore) { await userStore.ensureUser(request.user); }
         next();
         return;
       }
@@ -61,6 +64,7 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
       if (isDevelopment) {
         // JWKS not configured but token was sent — use dev user
         request.user = { ...developmentUser };
+        if (userStore) { await userStore.ensureUser(request.user); }
         next();
         return;
       }
@@ -82,9 +86,14 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
         preferred_username: payload.preferred_username || payload.upn || payload.email || payload.sub,
         email: payload.email || payload.upn || null,
         roles: payload.roles || [],
+        tenantId: payload.tid || null,
         iss: payload.iss,
         aud: payload.aud,
       };
+
+      if (userStore) {
+        await userStore.ensureUser(request.user);
+      }
 
       next();
     } catch (error) {
@@ -92,6 +101,7 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
         // Token invalid in dev — fall back to synthetic user
         console.warn('[asr] Token validation failed in dev mode, using synthetic user:', error.message);
         request.user = { ...developmentUser };
+        if (userStore) { await userStore.ensureUser(request.user); }
         next();
         return;
       }
