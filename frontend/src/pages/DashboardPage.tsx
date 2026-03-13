@@ -125,6 +125,8 @@ export default function DashboardPage() {
                         label={review.rating}
                         size="small"
                         sx={{
+                          minWidth: 100,
+                          fontWeight: 700,
                           backgroundColor: ratingColorMap[review.rating] || brandColors.gray,
                           color: '#fff',
                         }}
