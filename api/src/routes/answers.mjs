@@ -22,7 +22,8 @@ export function createAnswersRouter(database) {
     let statusCode = 200;
     let body = null;
     const { reviewId } = request.params;
-    const { classificationFactor, answers, assessor } = request.body;
+    const { classificationFactor, answers } = request.body;
+    const assessor = request.user?.preferred_username || 'system';
     const now = new Date().toISOString();
 
     try {

@@ -7,6 +7,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { loadScoringConfiguration } from '../scoring.mjs';
 
 // ────────────────────────────────────────────────────────────────────
+// getAssessor — derive assessor identity from authenticated user
+// ────────────────────────────────────────────────────────────────────
+
+function getAssessor(request) {
+  return request.user?.preferred_username || 'system';
+}
+
+// ────────────────────────────────────────────────────────────────────
 // sendResult — single response dispatch for all handlers
 // ────────────────────────────────────────────────────────────────────
 
@@ -117,7 +125,7 @@ export function createReviewsRouter(database) {
         {
           reviewId,
           applicationName: request.body.applicationName,
-          assessor: request.body.assessor,
+          assessor: getAssessor(request),
           notes: request.body.notes || '',
           questionnaireVersion,
           now,
@@ -150,7 +158,7 @@ export function createReviewsRouter(database) {
           choiceText: request.body.choiceText,
           factor: request.body.factor,
           now: new Date().toISOString(),
-          assessor: request.body.assessor || 'system',
+          assessor: getAssessor(request),
         }
       );
 
@@ -195,7 +203,7 @@ export function createReviewsRouter(database) {
           environmentChoice,
           deploymentArchetype,
           now: new Date().toISOString(),
-          assessor: request.body.assessor || 'system',
+          assessor: getAssessor(request),
         }
       );
 
@@ -229,7 +237,7 @@ export function createReviewsRouter(database) {
         {
           reviewId: request.params.reviewId,
           now: new Date().toISOString(),
-          assessor: request.body.assessor || 'system',
+          assessor: getAssessor(request),
         }
       );
 
@@ -261,7 +269,7 @@ export function createReviewsRouter(database) {
         {
           reviewId: request.params.reviewId,
           now: new Date().toISOString(),
-          assessor: request.body.assessor || 'system',
+          assessor: getAssessor(request),
         }
       );
     } catch (error) {
@@ -288,7 +296,7 @@ export function createReviewsRouter(database) {
           reviewId: request.params.reviewId,
           applicationName: request.body.applicationName,
           now: new Date().toISOString(),
-          assessor: request.body.assessor || 'system',
+          assessor: getAssessor(request),
         }
       );
 

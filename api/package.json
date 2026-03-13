@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@infisical/sdk": "^4.0.6",
+    "@rescor/core-auth": "file:../../core.rescor.net/packages/core-auth",
     "@rescor/core-config": "file:../../core.rescor.net/packages/core-config",
     "@rescor/core-db": "file:../../core.rescor.net/packages/core-db",
     "@rescor/core-utils": "file:../../core.rescor.net/packages/core-utils",
