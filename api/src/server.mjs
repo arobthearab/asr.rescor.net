@@ -8,6 +8,7 @@ import { createConfiguration, createDatabase } from './database.mjs';
 import { createConfigRouter } from './routes/config.mjs';
 import { createReviewsRouter } from './routes/reviews.mjs';
 import { createAnswersRouter } from './routes/answers.mjs';
+import { createProposedChangesRouter } from './routes/proposedChanges.mjs';
 import { createAuthenticationMiddleware } from './middleware/authenticate.mjs';
 import { authorize } from './middleware/authorize.mjs';
 import { UserStore } from './persistence/UserStore.mjs';
@@ -59,6 +60,7 @@ async function bootstrap() {
   application.use('/api/config', createConfigRouter(database));
   application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createReviewsRouter(database));
   application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createAnswersRouter(database));
+  application.use('/api/reviews', authorize('admin', 'reviewer', 'user'), createProposedChangesRouter(database));
 
   application.listen(PORT, () => {
     console.log(`ASR API listening on port ${PORT}`);
