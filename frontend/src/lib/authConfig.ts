@@ -11,7 +11,13 @@ const redirectUri = import.meta.env.VITE_MSAL_REDIRECT_URI || window.location.or
 const msalConfig: Configuration = {
   auth: {
     clientId,
-    authority: tenantId ? `https://login.microsoftonline.com/${tenantId}` : undefined,
+    // Single-tenant when VITE_MSAL_TENANT_ID is set;
+    // multi-tenant (/organizations) when absent — allows any Entra org.
+    authority: tenantId
+      ? `https://login.microsoftonline.com/${tenantId}`
+      : clientId
+        ? `https://login.microsoftonline.com/organizations`
+        : undefined,
     redirectUri,
   },
   cache: {

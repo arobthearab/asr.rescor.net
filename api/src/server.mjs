@@ -33,9 +33,11 @@ async function bootstrap() {
   // Auth config from Infisical (optional — absent in dev = auth-optional)
   const tenantId = await configuration.getConfig('entra', 'tenantId') || null;
   const clientId = await configuration.getConfig('entra', 'clientId') || null;
+  const allowedTenantsRaw = await configuration.getConfig('entra', 'allowedTenants') || '';
+  const allowedTenants = allowedTenantsRaw ? allowedTenantsRaw.split(',').map((id) => id.trim()).filter(Boolean) : [];
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
-  const authenticate = createAuthenticationMiddleware({ isDevelopment, tenantId, clientId, userStore });
+  const authenticate = createAuthenticationMiddleware({ isDevelopment, tenantId, clientId, userStore, allowedTenants });
 
   // Health check (unauthenticated)
   application.get('/api/health', (_request, response) => {

@@ -18,12 +18,13 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 /**
  * @param {object} options
- * @param {boolean}    options.isDevelopment — when true, token is optional
- * @param {string}     options.tenantId     — Entra ID tenant ID (GUID)
- * @param {string}     options.clientId     — Entra ID app registration client ID
- * @param {UserStore}  [options.userStore]  — optional UserStore for auto-registration
+ * @param {boolean}    options.isDevelopment   — when true, token is optional
+ * @param {string}     options.tenantId        — Entra ID tenant ID (GUID), null for multi-tenant
+ * @param {string}     options.clientId        — Entra ID app registration client ID
+ * @param {UserStore}  [options.userStore]     — optional UserStore for auto-registration
+ * @param {string[]}   [options.allowedTenants] — whitelist of allowed tenant IDs (empty = all)
  */
-export function createAuthenticationMiddleware({ isDevelopment = false, tenantId, clientId, userStore = null }) {
+export function createAuthenticationMiddleware({ isDevelopment = false, tenantId, clientId, userStore = null, allowedTenants = [] }) {
   const developmentUser = Object.freeze({
     sub: 'dev-user-0000',
     preferred_username: 'developer',
@@ -38,9 +39,15 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
   let issuer = null;
 
   if (tenantId) {
+    // Single-tenant — validate against one specific issuer
     const jwksUri = `https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`;
     jwks = createRemoteJWKSet(new URL(jwksUri));
     issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
+  } else if (clientId) {
+    // Multi-tenant — use the common JWKS endpoint, validate issuer per-request
+    const jwksUri = 'https://login.microsoftonline.com/organizations/discovery/v2.0/keys';
+    jwks = createRemoteJWKSet(new URL(jwksUri));
+    // issuer stays null — validated manually after verify
   }
 
   return async function authenticate(request, response, next) {
@@ -74,12 +81,29 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
 
     try {
       const token = authorizationHeader.split(' ')[1];
-      const verifyOptions = { issuer };
+      const verifyOptions = {};
+      if (issuer) {
+        verifyOptions.issuer = issuer;
+      }
       if (clientId) {
         verifyOptions.audience = clientId;
       }
 
       const { payload } = await jwtVerify(token, jwks, verifyOptions);
+
+      // Multi-tenant: validate issuer format + tenant whitelist
+      if (!issuer && payload.iss) {
+        const issuerPattern = /^https:\/\/login\.microsoftonline\.com\/([0-9a-f-]+)\/v2\.0$/;
+        const issuerMatch = issuerPattern.exec(payload.iss);
+        if (!issuerMatch) {
+          response.status(401).json({ error: 'Untrusted issuer' });
+          return;
+        }
+        if (allowedTenants.length > 0 && !allowedTenants.includes(issuerMatch[1])) {
+          response.status(403).json({ error: 'Tenant not authorized' });
+          return;
+        }
+      }
 
       request.user = {
         sub: payload.sub,
