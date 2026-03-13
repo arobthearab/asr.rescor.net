@@ -3,7 +3,7 @@
 Four phases: configurable compliance source resolution, NIST/regulatory
 descriptions, ISP/IISP policy links, and MS365/Entra ID authentication.
 
-Status: **Planned** — 2026-03-13
+Status: **Implemented** — Phases 1–4 complete, 2026-03-14
 
 ---
 

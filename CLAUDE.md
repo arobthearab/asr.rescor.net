@@ -42,7 +42,8 @@ See [docs/PROJECT-PATTERNS.md](docs/PROJECT-PATTERNS.md) for ASR-specific conven
 
 - [Source × Environment Deployment Taxonomy](docs/PLAN-SOURCE-ENVIRONMENT-TAXONOMY.md) — 9 compound archetypes (Source × Environment)
 - [Questionnaire Versioning](docs/PLAN-QUESTIONNAIRE-VERSIONING.md) — Historical checklist snapshots (Phases 1–2 implemented)
+- [Clickable Chips, SharePoint Links & Entra ID Auth](docs/PLAN-CLICKABLE-CHIPS-AUTH.md) — Configurable compliance chip actions, NIST CSF descriptions, ISP/IISP SharePoint links, MS365/Entra ID authentication
 
 ## Active Plans
 
-- [Clickable Chips, SharePoint Links & Entra ID Auth](docs/PLAN-CLICKABLE-CHIPS-AUTH.md) — Configurable compliance chip actions, NIST CSF descriptions, ISP/IISP SharePoint links, MS365/Entra ID authentication
+None
