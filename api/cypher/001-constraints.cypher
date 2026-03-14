@@ -75,6 +75,13 @@ CREATE CONSTRAINT compliance_tag_config_tag_unique IF NOT EXISTS
   FOR (config:ComplianceTagConfig)
   REQUIRE config.tag IS UNIQUE;
 
+CREATE CONSTRAINT remediation_id_unique IF NOT EXISTS
+  FOR (ri:RemediationItem)
+  REQUIRE ri.remediationId IS UNIQUE;
+
+CREATE INDEX remediation_status_index IF NOT EXISTS
+  FOR (ri:RemediationItem) ON (ri.status);
+
 // ─── Existence Constraints (Enterprise Edition only) ─────────────
 // Uncomment when running Neo4j Enterprise:
 //

@@ -3,12 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Alert,
   AppBar,
+  Badge,
   Box,
   Button,
   CircularProgress,
   Container,
   Grid,
   Snackbar,
+  Tab,
+  Tabs,
   Toolbar,
   Typography,
 } from '@mui/material';
@@ -19,6 +22,7 @@ import SourceBanner from '../components/SourceBanner';
 import EnvironmentBanner from '../components/EnvironmentBanner';
 import VersionBanner from '../components/VersionBanner';
 import DomainSection from '../components/DomainSection';
+import RemediationTab from '../components/RemediationTab';
 import ScoreDashboard from '../components/ScoreDashboard';
 import ReviewActions from '../components/ReviewActions';
 import UserMenu from '../components/UserMenu';
@@ -43,6 +47,7 @@ import type {
   EnvironmentChoice,
   ReviewDetail,
 } from '../lib/types';
+import { fetchRemediation } from '../lib/apiClient';
 import type { ScoringConfiguration } from '../lib/scoring';
 
 // ════════════════════════════════════════════════════════════════════
@@ -62,6 +67,10 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [snackMessage, setSnackMessage] = useState<string | null>(null);
+
+  // ── Active tab (Assessment vs Remediation Plan) ───────────────
+  const [activeTab, setActiveTab] = useState(0);
+  const [remediationCount, setRemediationCount] = useState(0);
 
   // ── Configuration (loaded once) ───────────────────────────────
   const [configuration, setConfiguration] = useState<AppConfiguration | null>(null);
@@ -153,6 +162,15 @@ export default function ReviewPage() {
 
         const latestConfig = configData as AppConfiguration;
         setCurrentVersion(latestConfig.questionnaireVersion);
+
+        // Fetch remediation count for badge
+        if (reviewId) {
+          fetchRemediation(reviewId)
+            .then((remediationItems) => setRemediationCount(
+              remediationItems.filter((item) => !item.remediation || item.remediation.status === 'OPEN' || item.remediation.status === 'IN_PROGRESS').length
+            ))
+            .catch(() => { /* non-critical */ });
+        }
 
         // Determine the effective config — may differ if the review
         // was created on an older questionnaire version.
@@ -468,56 +486,84 @@ export default function ReviewPage() {
 
       <Container maxWidth="xl" sx={{ mt: 3, mb: 10 }}>
         <Grid container spacing={3}>
-          {/* Left column — questionnaire */}
+          {/* Left column — tabbed: Assessment / Remediation Plan */}
           <Grid size={{ xs: 12, md: 9 }}>
-            {isHistoricalVersion && (
-              <VersionBanner
-                reviewLabel={configuration.questionnaireLabel}
-                reviewVersion={configuration.questionnaireVersion}
-                currentVersion={currentVersion}
+            <Tabs
+              value={activeTab}
+              onChange={(_event, newValue: number) => setActiveTab(newValue)}
+              sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
+            >
+              <Tab label="Assessment" />
+              <Tab
+                label={
+                  <Badge
+                    badgeContent={remediationCount}
+                    color="warning"
+                    max={99}
+                    sx={{ '& .MuiBadge-badge': { right: -12, top: 2 } }}
+                  >
+                    Remediation Plan
+                  </Badge>
+                }
               />
+            </Tabs>
+
+            {activeTab === 0 && (
+              <>
+                {isHistoricalVersion && (
+                  <VersionBanner
+                    reviewLabel={configuration.questionnaireLabel}
+                    reviewVersion={configuration.questionnaireVersion}
+                    currentVersion={currentVersion}
+                  />
+                )}
+
+                <ClassificationBanner
+                  classification={configuration.classification}
+                  selectedChoice={classificationChoice}
+                  onChoiceChange={handleClassificationChange}
+                  disabled={isReadOnly}
+                />
+
+                <SourceBanner
+                  source={configuration.source}
+                  selectedSource={sourceChoice}
+                  onSourceChange={handleSourceChange}
+                  disabled={isReadOnly}
+                />
+
+                <EnvironmentBanner
+                  environment={configuration.environment}
+                  selectedEnvironment={environmentChoice}
+                  onEnvironmentChange={handleEnvironmentChange}
+                  disabled={isReadOnly}
+                />
+
+                {classificationFactor === 0 && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    Select a risk classification above to enable scoring.
+                  </Alert>
+                )}
+
+                {configuration.domains.map((domain) => (
+                  <DomainSection
+                    key={domain.domainIndex}
+                    domain={domain}
+                    answers={answers}
+                    onAnswerChange={handleAnswerChange}
+                    weightTierMap={weightTierMap}
+                    classificationFactor={classificationFactor}
+                    disabled={isReadOnly}
+                    dampingFactor={configuration.scoringConfiguration.dampingFactor}
+                    deploymentArchetype={deploymentArchetype}
+                  />
+                ))}
+              </>
             )}
 
-            <ClassificationBanner
-              classification={configuration.classification}
-              selectedChoice={classificationChoice}
-              onChoiceChange={handleClassificationChange}
-              disabled={isReadOnly}
-            />
-
-            <SourceBanner
-              source={configuration.source}
-              selectedSource={sourceChoice}
-              onSourceChange={handleSourceChange}
-              disabled={isReadOnly}
-            />
-
-            <EnvironmentBanner
-              environment={configuration.environment}
-              selectedEnvironment={environmentChoice}
-              onEnvironmentChange={handleEnvironmentChange}
-              disabled={isReadOnly}
-            />
-
-            {classificationFactor === 0 && (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Select a risk classification above to enable scoring.
-              </Alert>
+            {activeTab === 1 && (
+              <RemediationTab reviewId={reviewId} isReadOnly={isReadOnly} />
             )}
-
-            {configuration.domains.map((domain) => (
-              <DomainSection
-                key={domain.domainIndex}
-                domain={domain}
-                answers={answers}
-                onAnswerChange={handleAnswerChange}
-                weightTierMap={weightTierMap}
-                classificationFactor={classificationFactor}
-                disabled={isReadOnly}
-                dampingFactor={configuration.scoringConfiguration.dampingFactor}
-                deploymentArchetype={deploymentArchetype}
-              />
-            ))}
           </Grid>
 
           {/* Right column — score dashboard */}

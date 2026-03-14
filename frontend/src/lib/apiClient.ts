@@ -294,3 +294,67 @@ export async function reassignReview(
   });
   return handleResponse(response);
 }
+
+// ════════════════════════════════════════════════════════════════════
+// Remediation / POAM
+// ════════════════════════════════════════════════════════════════════
+
+import type { RemediationItem, RemediationStatus, FunctionCode } from './types';
+
+export async function fetchRemediation(reviewId: string): Promise<RemediationItem[]> {
+  const headers = await authHeaders();
+  const response = await fetch(`${BASE_URL}/reviews/${reviewId}/remediation`, { headers });
+  return (await handleResponse(response)) as RemediationItem[];
+}
+
+export async function generateRemediation(reviewId: string): Promise<{ created: number }> {
+  const response = await fetch(`${BASE_URL}/reviews/${reviewId}/remediation/generate`, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({}),
+  });
+  return (await handleResponse(response)) as { created: number };
+}
+
+export async function updateRemediationItem(
+  reviewId: string,
+  remediationId: string,
+  updates: {
+    proposedAction?: string;
+    assignedFunction?: FunctionCode;
+    assignedTo?: string;
+    notes?: string;
+  },
+): Promise<unknown> {
+  const response = await fetch(`${BASE_URL}/reviews/${reviewId}/remediation/${remediationId}`, {
+    method: 'PUT',
+    headers: await authHeaders(),
+    body: JSON.stringify(updates),
+  });
+  return handleResponse(response);
+}
+
+export async function updateRemediationStatus(
+  reviewId: string,
+  remediationId: string,
+  status: RemediationStatus,
+): Promise<unknown> {
+  const response = await fetch(`${BASE_URL}/reviews/${reviewId}/remediation/${remediationId}/status`, {
+    method: 'PATCH',
+    headers: await authHeaders(),
+    body: JSON.stringify({ status }),
+  });
+  return handleResponse(response);
+}
+
+export async function acceptRisk(
+  reviewId: string,
+  remediationId: string,
+): Promise<unknown> {
+  const response = await fetch(`${BASE_URL}/reviews/${reviewId}/remediation/${remediationId}/accept-risk`, {
+    method: 'PATCH',
+    headers: await authHeaders(),
+    body: JSON.stringify({}),
+  });
+  return handleResponse(response);
+}

@@ -133,3 +133,38 @@ export interface ReviewDetail {
   created: string;
   updated: string;
 }
+
+// ════════════════════════════════════════════════════════════════════
+// Remediation / POAM types
+// ════════════════════════════════════════════════════════════════════
+
+export type RemediationStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'RISK_ACCEPTED';
+
+export type FunctionCode = 'LEGAL' | 'ERM' | 'EA' | 'SEPG' | 'SAE' | 'GENERAL';
+
+export interface RemediationDetail {
+  remediationId: string;
+  proposedAction: string;
+  assignedFunction: FunctionCode;
+  assignedTo: string | null;
+  status: RemediationStatus;
+  riskAcceptedBy: string | null;
+  riskAcceptedAt: string | null;
+  completedAt: string | null;
+  targetDate: string | null;
+  notes: string;
+  created: string | null;
+  updated: string | null;
+}
+
+export interface RemediationItem {
+  domainIndex: number;
+  questionIndex: number;
+  questionText: string;
+  choiceText: string;
+  rawScore: number;
+  weightTier: string;
+  measurement: number;
+  responsibleFunction: FunctionCode;
+  remediation: RemediationDetail | null;
+}
