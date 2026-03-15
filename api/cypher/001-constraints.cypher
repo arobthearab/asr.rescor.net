@@ -39,6 +39,10 @@ CREATE CONSTRAINT sra_section_id_unique IF NOT EXISTS
   FOR (section:SraSection)
   REQUIRE section.sectionId IS UNIQUE;
 
+CREATE CONSTRAINT question_id_unique IF NOT EXISTS
+  FOR (q:Question)
+  REQUIRE q.questionId IS UNIQUE;
+
 CREATE CONSTRAINT scoring_config_id_unique IF NOT EXISTS
   FOR (config:ScoringConfig)
   REQUIRE config.configId IS UNIQUE;

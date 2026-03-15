@@ -299,6 +299,7 @@ function buildQuestionsResponse(questions) {
   const answer = questions
     .sort((first, second) => (first.questionIndex ?? 0) - (second.questionIndex ?? 0))
     .map((question) => ({
+      questionId: question.questionId || null,
       domainIndex: question.domainIndex,
       questionIndex: question.questionIndex,
       text: question.text,
@@ -307,6 +308,7 @@ function buildQuestionsResponse(questions) {
       choiceScores: question.choiceScores || [],
       naScore: question.naScore ?? 1,
       applicability: question.applicability || [],
+      responsibleFunction: question.responsibleFunction || null,
     }));
 
   return answer;

@@ -152,8 +152,9 @@ export default function DomainSection({
 // createEmptyAnswer
 // ────────────────────────────────────────────────────────────────────
 
-function createEmptyAnswer(question: { domainIndex: number; questionIndex: number; weightTier: string }): AnswerState {
+function createEmptyAnswer(question: { questionId?: string | null; domainIndex: number; questionIndex: number; weightTier: string }): AnswerState {
   return {
+    questionId: question.questionId ?? null,
     domainIndex: question.domainIndex,
     questionIndex: question.questionIndex,
     choiceIndex: null,

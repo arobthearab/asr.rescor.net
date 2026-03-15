@@ -15,6 +15,7 @@ export interface ClassificationConfig {
 }
 
 export interface QuestionConfig {
+  questionId: string | null;
   domainIndex: number;
   questionIndex: number;
   text: string;
@@ -23,6 +24,7 @@ export interface QuestionConfig {
   choiceScores: number[];
   naScore: number;
   applicability: string[];
+  responsibleFunction: string | null;
 }
 
 export interface ComplianceRef {
@@ -104,6 +106,7 @@ export interface QuestionnaireVersion {
 }
 
 export interface AnswerState {
+  questionId: string | null;
   domainIndex: number;
   questionIndex: number;
   choiceIndex: number | null;    // null = unanswered, -1 = N/A

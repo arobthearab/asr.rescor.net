@@ -256,6 +256,7 @@ export default function ReviewPage() {
                 item.answer.questionIndex as number,
               );
               answerMap.set(key, {
+                questionId: (item.answer.questionId as string) || null,
                 domainIndex: item.answer.domainIndex as number,
                 questionIndex: item.answer.questionIndex as number,
                 choiceIndex: findChoiceIndex(

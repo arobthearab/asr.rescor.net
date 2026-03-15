@@ -196,15 +196,18 @@ export function createRemediationRouter(database) {
         `MATCH (review:Review {reviewId: $reviewId})-[:CONTAINS]->(answer:Answer)
          WHERE answer.measurement > 25
            AND NOT (answer)-[:HAS_REMEDIATION]->(:RemediationItem)
+         OPTIONAL MATCH (answer)-[:ANSWERS]->(question:Question)
          RETURN answer.domainIndex   AS domainIndex,
-                answer.questionIndex AS questionIndex`,
+                answer.questionIndex AS questionIndex,
+                question.responsibleFunction AS responsibleFunction`,
         { reviewId }
       );
 
       let createdCount = 0;
       for (const row of unplanned) {
         const remediationId = randomUUID();
-        const assignedFunction = lookupFunction(row.domainIndex, row.questionIndex);
+        const assignedFunction = row.responsibleFunction
+          || lookupFunction(row.domainIndex, row.questionIndex);
 
         await database.query(
           `MATCH (review:Review {reviewId: $reviewId})-[:CONTAINS]->(answer:Answer {domainIndex: $domainIndex, questionIndex: $questionIndex})
@@ -268,7 +271,19 @@ export function createRemediationRouter(database) {
         return;
       }
 
-      const safeFunction = VALID_FUNCTIONS.includes(assignedFunction) ? assignedFunction : lookupFunction(domainIndex, questionIndex);
+      let safeFunction = VALID_FUNCTIONS.includes(assignedFunction) ? assignedFunction : null;
+
+      // If caller didn't provide a valid function, read from Question node
+      if (!safeFunction) {
+        const questionResult = await database.query(
+          `MATCH (q:Question {domainIndex: $domainIndex, questionIndex: $questionIndex})
+           RETURN q.responsibleFunction AS responsibleFunction`,
+          { domainIndex, questionIndex }
+        );
+        safeFunction = questionResult[0]?.responsibleFunction
+          || lookupFunction(domainIndex, questionIndex);
+      }
+
       const safeResponseType = VALID_RESPONSE_TYPES.includes(responseType) ? responseType : 'CUSTOM';
       const safeMitigation = typeof mitigationPercent === 'number'
         ? Math.max(0, Math.min(100, Math.round(mitigationPercent)))

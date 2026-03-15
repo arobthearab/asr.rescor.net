@@ -266,15 +266,17 @@ function generateDomainStatements(data) {
       statements.push({
         cypher: `
           MERGE (question:Question {domainIndex: $domainIndex, questionIndex: $questionIndex})
-            SET question.text          = $text,
-                question.weightTier    = $weightTier,
-                question.choices       = $choices,
-                question.choiceScores  = $choiceScores,
-                question.naScore       = $naScore,
-                question.applicability = $applicability,
-                question.guidance      = $guidance,
-                question.active        = true,
-                question.updated       = datetime()
+            ON CREATE SET question.questionId = randomUUID()
+            SET question.text                = $text,
+                question.weightTier          = $weightTier,
+                question.choices             = $choices,
+                question.choiceScores        = $choiceScores,
+                question.naScore             = $naScore,
+                question.applicability       = $applicability,
+                question.guidance            = $guidance,
+                question.responsibleFunction = $responsibleFunction,
+                question.active              = true,
+                question.updated             = datetime()
         `,
         params: {
           domainIndex,
@@ -286,6 +288,7 @@ function generateDomainStatements(data) {
           naScore,
           applicability: question.applicability || [],
           guidance: question.guidance || null,
+          responsibleFunction: question.responsible_function || null,
         },
       });
     }
@@ -409,6 +412,7 @@ function buildSnapshot(data, questionnaireVersion) {
         choiceScores,
         naScore,
         applicability: question.applicability || [],
+        responsibleFunction: question.responsible_function || null,
       };
     }),
   }));
