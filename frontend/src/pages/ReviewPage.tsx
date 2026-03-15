@@ -3,9 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Alert,
   AppBar,
-  Badge,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Container,
   Grid,
@@ -167,7 +167,10 @@ export default function ReviewPage() {
         if (reviewId) {
           fetchRemediation(reviewId)
             .then((remediationItems) => setRemediationCount(
-              remediationItems.filter((item) => !item.remediation || item.remediation.status === 'OPEN' || item.remediation.status === 'IN_PROGRESS').length
+              remediationItems.filter((item) =>
+                item.remediations.length === 0
+                || item.remediations.some((r) => r.status === 'OPEN' || r.status === 'IN_PROGRESS')
+              ).length
             ))
             .catch(() => { /* non-critical */ });
         }
@@ -496,14 +499,12 @@ export default function ReviewPage() {
               <Tab label="Assessment" />
               <Tab
                 label={
-                  <Badge
-                    badgeContent={remediationCount}
-                    color="warning"
-                    max={99}
-                    sx={{ '& .MuiBadge-badge': { right: -12, top: 2 } }}
-                  >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     Remediation Plan
-                  </Badge>
+                    {remediationCount > 0 && (
+                      <Chip label={`${remediationCount} open`} size="small" color="warning" />
+                    )}
+                  </Box>
                 }
               />
             </Tabs>

@@ -22,6 +22,19 @@ const FUNCTION_MAP = buildFunctionMap({
   GENERAL: [[1,1],[1,2],[1,3],[1,6],[1,7],[1,8],[1,9], [9,1],[9,2]],
 });
 
+const VALID_FUNCTIONS = ['LEGAL', 'ERM', 'EA', 'SEPG', 'SAE', 'GENERAL'];
+const VALID_STATUSES = ['OPEN', 'IN_PROGRESS', 'COMPLETED', 'RISK_ACCEPTED'];
+const VALID_RESPONSE_TYPES = ['CUSTOM', 'ACCEPT_RISK', 'COMPENSATING_CONTROL', 'REMEDIATION_SCHEDULED', 'RISK_TRANSFER', 'FALSE_POSITIVE'];
+
+const RESPONSE_TYPE_DEFAULTS = {
+  CUSTOM:                  0,
+  ACCEPT_RISK:             0,
+  COMPENSATING_CONTROL:    40,
+  REMEDIATION_SCHEDULED:   50,
+  RISK_TRANSFER:           30,
+  FALSE_POSITIVE:          100,
+};
+
 function buildFunctionMap(mapping) {
   const result = new Map();
   for (const [functionCode, pairs] of Object.entries(mapping)) {
@@ -37,6 +50,29 @@ function lookupFunction(domainIndex, questionIndex) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// mitigationAggregate — RSK diminishing impact for multiple mitigations
+// Same damping formula as rskAggregate: ceil(Σ sorted[i] / dampingFactor^i)
+// ────────────────────────────────────────────────────────────────────
+
+function mitigationAggregate(mitigations, dampingFactor = 4) {
+  const valid = mitigations
+    .filter((value) => typeof value === 'number' && value > 0)
+    .sort((first, second) => second - first);
+
+  let answer = 0;
+
+  if (valid.length > 0) {
+    let total = 0;
+    for (let index = 0; index < valid.length; index++) {
+      total += valid[index] / Math.pow(dampingFactor, index);
+    }
+    answer = Math.min(100, Math.ceil(total));
+  }
+
+  return answer;
+}
+
+// ────────────────────────────────────────────────────────────────────
 // createRemediationRouter
 // ────────────────────────────────────────────────────────────────────
 
@@ -45,7 +81,7 @@ export function createRemediationRouter(database) {
 
   // ── GET /api/reviews/:reviewId/remediation ─────────────────────
   // Returns answers with measurement > 25, joined with any existing
-  // RemediationItem nodes.
+  // RemediationItem nodes.  Groups multiple remediations per answer.
   router.get('/:reviewId/remediation', async (request, response) => {
     let statusCode = 200;
     let body = [];
@@ -72,6 +108,8 @@ export function createRemediationRouter(database) {
                 ri.assignedFunction     AS assignedFunction,
                 ri.assignedTo           AS assignedTo,
                 ri.status               AS status,
+                ri.responseType         AS responseType,
+                ri.mitigationPercent    AS mitigationPercent,
                 ri.riskAcceptedBy       AS riskAcceptedBy,
                 ri.riskAcceptedAt       AS riskAcceptedAt,
                 ri.completedAt          AS completedAt,
@@ -79,29 +117,42 @@ export function createRemediationRouter(database) {
                 ri.notes                AS notes,
                 ri.created              AS riCreated,
                 ri.updated              AS riUpdated
-         ORDER BY answer.measurement DESC`,
+         ORDER BY answer.measurement DESC, answer.domainIndex, answer.questionIndex`,
         { reviewId }
       );
 
-      body = rows.map((row) => {
+      // Group rows by answer (domainIndex:questionIndex) to support
+      // multiple RemediationItems per answer.
+      const groupMap = new Map();
+
+      for (const row of rows) {
+        const key = `${row.domainIndex}:${row.questionIndex}`;
         const defaultFunction = row.responsibleFunction
           || lookupFunction(row.domainIndex, row.questionIndex);
 
-        return {
-          domainIndex: row.domainIndex,
-          questionIndex: row.questionIndex,
-          questionText: row.questionText || row.currentQuestionText || '',
-          choiceText: row.choiceText,
-          rawScore: row.rawScore,
-          weightTier: row.weightTier,
-          measurement: row.measurement,
-          responsibleFunction: defaultFunction,
-          remediation: row.remediationId ? {
+        if (!groupMap.has(key)) {
+          groupMap.set(key, {
+            domainIndex: row.domainIndex,
+            questionIndex: row.questionIndex,
+            questionText: row.questionText || row.currentQuestionText || '',
+            choiceText: row.choiceText,
+            rawScore: row.rawScore,
+            weightTier: row.weightTier,
+            measurement: row.measurement,
+            responsibleFunction: defaultFunction,
+            remediations: [],
+          });
+        }
+
+        if (row.remediationId) {
+          groupMap.get(key).remediations.push({
             remediationId: row.remediationId,
             proposedAction: row.proposedAction || '',
             assignedFunction: row.assignedFunction || defaultFunction,
             assignedTo: row.assignedTo || null,
             status: row.status || 'OPEN',
+            responseType: row.responseType || 'CUSTOM',
+            mitigationPercent: typeof row.mitigationPercent === 'number' ? row.mitigationPercent : 0,
             riskAcceptedBy: row.riskAcceptedBy || null,
             riskAcceptedAt: row.riskAcceptedAt || null,
             completedAt: row.completedAt || null,
@@ -109,8 +160,16 @@ export function createRemediationRouter(database) {
             notes: row.notes || '',
             created: row.riCreated || null,
             updated: row.riUpdated || null,
-          } : null,
-        };
+          });
+        }
+      }
+
+      // Compute combined mitigation + residualRU for each answer
+      body = Array.from(groupMap.values()).map((item) => {
+        const mitigations = item.remediations.map((r) => r.mitigationPercent);
+        const combined = mitigationAggregate(mitigations);
+        const residual = Math.max(0, Math.round(item.measurement * (1 - combined / 100)));
+        return { ...item, combinedMitigation: combined, residualRU: residual };
       });
     } catch (error) {
       statusCode = 500;
@@ -155,6 +214,8 @@ export function createRemediationRouter(database) {
              assignedFunction:  $assignedFunction,
              assignedTo:        null,
              status:            'OPEN',
+             responseType:      'CUSTOM',
+             mitigationPercent: 0,
              riskAcceptedBy:    null,
              riskAcceptedAt:    null,
              completedAt:       null,
@@ -187,29 +248,109 @@ export function createRemediationRouter(database) {
     response.status(statusCode).json(body);
   });
 
+  // ── POST /api/reviews/:reviewId/remediation/add ────────────────
+  // Add an additional remediation proposal to an existing answer.
+  router.post('/:reviewId/remediation/add', authorize('admin', 'reviewer'), async (request, response) => {
+    let statusCode = 200;
+    let body = null;
+
+    try {
+      const { reviewId } = request.params;
+      const { domainIndex, questionIndex, proposedAction, assignedFunction, responseType, mitigationPercent } = request.body;
+      const assessor = request.user?.preferred_username || 'system';
+      const now = new Date().toISOString();
+      const remediationId = randomUUID();
+
+      if (typeof domainIndex !== 'number' || typeof questionIndex !== 'number') {
+        statusCode = 400;
+        body = { error: 'domainIndex and questionIndex are required' };
+        response.status(statusCode).json(body);
+        return;
+      }
+
+      const safeFunction = VALID_FUNCTIONS.includes(assignedFunction) ? assignedFunction : lookupFunction(domainIndex, questionIndex);
+      const safeResponseType = VALID_RESPONSE_TYPES.includes(responseType) ? responseType : 'CUSTOM';
+      const safeMitigation = typeof mitigationPercent === 'number'
+        ? Math.max(0, Math.min(100, Math.round(mitigationPercent)))
+        : RESPONSE_TYPE_DEFAULTS[safeResponseType] || 0;
+
+      const result = await database.query(
+        `MATCH (review:Review {reviewId: $reviewId})-[:CONTAINS]->(answer:Answer {domainIndex: $domainIndex, questionIndex: $questionIndex})
+         CREATE (answer)-[:HAS_REMEDIATION]->(ri:RemediationItem {
+           remediationId:     $remediationId,
+           proposedAction:    $proposedAction,
+           assignedFunction:  $assignedFunction,
+           assignedTo:        null,
+           status:            'OPEN',
+           responseType:      $responseType,
+           mitigationPercent: $mitigationPercent,
+           riskAcceptedBy:    null,
+           riskAcceptedAt:    null,
+           completedAt:       null,
+           targetDate:        null,
+           notes:             '',
+           created:           $now,
+           createdBy:         $assessor,
+           updated:           $now,
+           updatedBy:         $assessor
+         })
+         RETURN ri`,
+        {
+          reviewId,
+          domainIndex,
+          questionIndex,
+          remediationId,
+          proposedAction: proposedAction || '',
+          assignedFunction: safeFunction,
+          responseType: safeResponseType,
+          mitigationPercent: safeMitigation,
+          now,
+          assessor,
+        }
+      );
+
+      if (result.length === 0) {
+        statusCode = 404;
+        body = { error: 'Answer not found for the specified question' };
+      } else {
+        body = result[0].ri || result[0];
+      }
+    } catch (error) {
+      statusCode = 500;
+      body = { error: error.message };
+    }
+
+    response.status(statusCode).json(body);
+  });
+
   // ── PUT /api/reviews/:reviewId/remediation/:remediationId ──────
-  // Update proposed action, function, assignedTo, notes.
+  // Update proposed action, function, assignedTo, notes, responseType, mitigationPercent.
   router.put('/:reviewId/remediation/:remediationId', authorize('admin', 'reviewer'), async (request, response) => {
     let statusCode = 200;
     let body = null;
 
     try {
       const { reviewId, remediationId } = request.params;
-      const { proposedAction, assignedFunction, assignedTo, notes } = request.body;
+      const { proposedAction, assignedFunction, assignedTo, notes, responseType, mitigationPercent } = request.body;
       const assessor = request.user?.preferred_username || 'system';
       const now = new Date().toISOString();
 
-      const validFunctions = ['LEGAL', 'ERM', 'EA', 'SEPG', 'SAE', 'GENERAL'];
-      const safeFunction = validFunctions.includes(assignedFunction) ? assignedFunction : undefined;
+      const safeFunction = VALID_FUNCTIONS.includes(assignedFunction) ? assignedFunction : undefined;
+      const safeResponseType = VALID_RESPONSE_TYPES.includes(responseType) ? responseType : undefined;
+      const safeMitigation = typeof mitigationPercent === 'number'
+        ? Math.max(0, Math.min(100, Math.round(mitigationPercent)))
+        : undefined;
 
       const result = await database.query(
         `MATCH (review:Review {reviewId: $reviewId})-[:CONTAINS]->(answer:Answer)-[:HAS_REMEDIATION]->(ri:RemediationItem {remediationId: $remediationId})
-         SET ri.proposedAction   = COALESCE($proposedAction, ri.proposedAction),
-             ri.assignedFunction = COALESCE($assignedFunction, ri.assignedFunction),
-             ri.assignedTo       = COALESCE($assignedTo, ri.assignedTo),
-             ri.notes            = COALESCE($notes, ri.notes),
-             ri.updated          = $now,
-             ri.updatedBy        = $assessor
+         SET ri.proposedAction    = COALESCE($proposedAction, ri.proposedAction),
+             ri.assignedFunction  = COALESCE($assignedFunction, ri.assignedFunction),
+             ri.assignedTo        = COALESCE($assignedTo, ri.assignedTo),
+             ri.notes             = COALESCE($notes, ri.notes),
+             ri.responseType      = COALESCE($responseType, ri.responseType),
+             ri.mitigationPercent = COALESCE($mitigationPercent, ri.mitigationPercent),
+             ri.updated           = $now,
+             ri.updatedBy         = $assessor
          RETURN ri`,
         {
           reviewId,
@@ -218,6 +359,8 @@ export function createRemediationRouter(database) {
           assignedFunction: safeFunction ?? null,
           assignedTo: assignedTo ?? null,
           notes: notes ?? null,
+          responseType: safeResponseType ?? null,
+          mitigationPercent: safeMitigation ?? null,
           now,
           assessor,
         }
@@ -249,7 +392,7 @@ export function createRemediationRouter(database) {
       const assessor = request.user?.preferred_username || 'system';
       const now = new Date().toISOString();
 
-      const validStatuses = ['OPEN', 'IN_PROGRESS', 'COMPLETED', 'RISK_ACCEPTED'];
+      const validStatuses = VALID_STATUSES;
       if (!validStatuses.includes(status)) {
         statusCode = 400;
         body = { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` };

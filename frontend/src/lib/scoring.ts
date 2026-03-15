@@ -51,6 +51,32 @@ export function rskAggregate(
 }
 
 // ────────────────────────────────────────────────────────────────────
+// mitigationAggregate — RSK diminishing impact for multiple mitigations
+// Same damping formula: ceil(Σ sorted_desc[i] / dampingFactor^i), capped at 100
+// ────────────────────────────────────────────────────────────────────
+
+export function mitigationAggregate(
+  mitigations: number[],
+  dampingFactor: number = DEFAULT_CONFIGURATION.dampingFactor,
+): number {
+  const valid = mitigations
+    .filter((value) => typeof value === 'number' && value > 0)
+    .sort((first, second) => second - first);
+
+  let answer = 0;
+
+  if (valid.length > 0) {
+    let total = 0;
+    for (let index = 0; index < valid.length; index++) {
+      total += valid[index] / Math.pow(dampingFactor, index);
+    }
+    answer = Math.min(100, Math.ceil(total));
+  }
+
+  return answer;
+}
+
+// ────────────────────────────────────────────────────────────────────
 // rskNormalize
 // ────────────────────────────────────────────────────────────────────
 

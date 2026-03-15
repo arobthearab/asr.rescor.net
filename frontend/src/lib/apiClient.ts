@@ -299,7 +299,7 @@ export async function reassignReview(
 // Remediation / POAM
 // ════════════════════════════════════════════════════════════════════
 
-import type { RemediationItem, RemediationStatus, FunctionCode } from './types';
+import type { RemediationItem, RemediationStatus, FunctionCode, ResponseType } from './types';
 
 export async function fetchRemediation(reviewId: string): Promise<RemediationItem[]> {
   const headers = await authHeaders();
@@ -316,6 +316,25 @@ export async function generateRemediation(reviewId: string): Promise<{ created: 
   return (await handleResponse(response)) as { created: number };
 }
 
+export async function addRemediationItem(
+  reviewId: string,
+  params: {
+    domainIndex: number;
+    questionIndex: number;
+    proposedAction?: string;
+    assignedFunction?: FunctionCode;
+    responseType?: ResponseType;
+    mitigationPercent?: number;
+  },
+): Promise<unknown> {
+  const response = await fetch(`${BASE_URL}/reviews/${reviewId}/remediation/add`, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify(params),
+  });
+  return handleResponse(response);
+}
+
 export async function updateRemediationItem(
   reviewId: string,
   remediationId: string,
@@ -324,6 +343,8 @@ export async function updateRemediationItem(
     assignedFunction?: FunctionCode;
     assignedTo?: string;
     notes?: string;
+    responseType?: ResponseType;
+    mitigationPercent?: number;
   },
 ): Promise<unknown> {
   const response = await fetch(`${BASE_URL}/reviews/${reviewId}/remediation/${remediationId}`, {

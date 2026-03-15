@@ -142,12 +142,22 @@ export type RemediationStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'RISK_ACC
 
 export type FunctionCode = 'LEGAL' | 'ERM' | 'EA' | 'SEPG' | 'SAE' | 'GENERAL';
 
+export type ResponseType =
+  | 'CUSTOM'
+  | 'ACCEPT_RISK'
+  | 'COMPENSATING_CONTROL'
+  | 'REMEDIATION_SCHEDULED'
+  | 'RISK_TRANSFER'
+  | 'FALSE_POSITIVE';
+
 export interface RemediationDetail {
   remediationId: string;
   proposedAction: string;
   assignedFunction: FunctionCode;
   assignedTo: string | null;
   status: RemediationStatus;
+  responseType: ResponseType;
+  mitigationPercent: number;
   riskAcceptedBy: string | null;
   riskAcceptedAt: string | null;
   completedAt: string | null;
@@ -166,5 +176,7 @@ export interface RemediationItem {
   weightTier: string;
   measurement: number;
   responsibleFunction: FunctionCode;
-  remediation: RemediationDetail | null;
+  remediations: RemediationDetail[];
+  combinedMitigation: number;
+  residualRU: number;
 }
