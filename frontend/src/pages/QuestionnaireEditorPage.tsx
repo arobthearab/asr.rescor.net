@@ -34,15 +34,18 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import HistoryIcon from '@mui/icons-material/History';
 import PublishIcon from '@mui/icons-material/Publish';
 import SaveIcon from '@mui/icons-material/Save';
 import UploadIcon from '@mui/icons-material/Upload';
 import {
   createDraft,
   deleteDraft,
+  deleteQuestionnaireVersion,
   exportQuestionnaire,
   fetchDraft,
   fetchDrafts,
+  fetchVersions,
   importYaml,
   publishDraft,
   updateDraft,
@@ -52,6 +55,7 @@ import type {
   DraftDomain,
   DraftQuestion,
   DraftSummary,
+  QuestionnaireVersion,
 } from '../lib/types';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import UserMenu from '../components/UserMenu';
@@ -122,6 +126,10 @@ export default function QuestionnaireEditorPage() {
   const [newDraftOpen, setNewDraftOpen] = useState(false);
   const [newDraftLabel, setNewDraftLabel] = useState('');
 
+  // Version history
+  const [versions, setVersions] = useState<QuestionnaireVersion[]>([]);
+  const [deleteVersionTarget, setDeleteVersionTarget] = useState<QuestionnaireVersion | null>(null);
+
   // ── Load drafts on mount ──────────────────────────────────────
 
   const loadDrafts = useCallback(async () => {
@@ -133,10 +141,20 @@ export default function QuestionnaireEditorPage() {
     }
   }, []);
 
+  const loadVersions = useCallback(async () => {
+    try {
+      const data = (await fetchVersions()) as { versions: QuestionnaireVersion[] };
+      setVersions(data.versions || []);
+    } catch {
+      // versions endpoint unavailable — leave empty
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAdmin) return;
     loadDrafts();
-  }, [isAdmin, loadDrafts]);
+    loadVersions();
+  }, [isAdmin, loadDrafts, loadVersions]);
 
   // ── Open a draft for editing ──────────────────────────────────
 
@@ -211,6 +229,7 @@ export default function QuestionnaireEditorPage() {
       setDraftStatus('PUBLISHED');
       setDirty(false);
       await loadDrafts();
+      await loadVersions();
       setToast({ message: 'Questionnaire published to live!', severity: 'success' });
     } catch (error) {
       setToast({ message: (error as Error).message, severity: 'error' });
@@ -232,6 +251,23 @@ export default function QuestionnaireEditorPage() {
       }
       await loadDrafts();
       setToast({ message: 'Draft deleted.', severity: 'success' });
+    } catch (error) {
+      setToast({ message: (error as Error).message, severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Delete questionnaire version ──────────────────────────────
+
+  async function handleDeleteVersion(): Promise<void> {
+    if (!deleteVersionTarget) return;
+    setDeleteVersionTarget(null);
+    setLoading(true);
+    try {
+      await deleteQuestionnaireVersion(deleteVersionTarget.version);
+      await loadVersions();
+      setToast({ message: 'Version deleted.', severity: 'success' });
     } catch (error) {
       setToast({ message: (error as Error).message, severity: 'error' });
     } finally {
@@ -560,7 +596,75 @@ export default function QuestionnaireEditorPage() {
               </Paper>
             ))}
           </Stack>
+
+          {/* Published Versions */}
+          {versions.length > 0 && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                <HistoryIcon color="action" />
+                <Typography variant="h6">Published Versions</Typography>
+              </Stack>
+              <Stack spacing={1}>
+                {versions.map((versionItem) => {
+                  const canDelete = !versionItem.current && versionItem.reviewCount === 0;
+                  return (
+                    <Paper key={versionItem.version} variant="outlined" sx={{ p: 2 }}>
+                      <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <Box>
+                          <Typography variant="subtitle1" fontWeight={600}>
+                            {versionItem.label || versionItem.version}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {versionItem.version.slice(0, 12)} &middot; {new Date(versionItem.created).toLocaleString()}
+                            {versionItem.reviewCount > 0
+                              ? ` \u00b7 ${versionItem.reviewCount} assessment${versionItem.reviewCount !== 1 ? 's' : ''}`
+                              : ''}
+                          </Typography>
+                        </Box>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          {versionItem.current && (
+                            <Chip label="Current" size="small" color="primary" />
+                          )}
+                          {canDelete && (
+                            <Tooltip title="Delete version (no assessments)">
+                              <IconButton
+                                size="small"
+                                onClick={() => setDeleteVersionTarget(versionItem)}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </Stack>
+                      </Stack>
+                    </Paper>
+                  );
+                })}
+              </Stack>
+            </>
+          )}
         </Container>
+
+        {/* Delete version confirmation */}
+        <Dialog
+          open={deleteVersionTarget !== null}
+          onClose={() => setDeleteVersionTarget(null)}
+        >
+          <DialogTitle>Delete Version?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              This version has no assessments and will be permanently deleted.
+              This cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteVersionTarget(null)}>Cancel</Button>
+            <Button variant="contained" color="error" onClick={handleDeleteVersion} disabled={loading}>
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* New draft dialog */}
         <Dialog open={newDraftOpen} onClose={() => setNewDraftOpen(false)} maxWidth="xs" fullWidth>

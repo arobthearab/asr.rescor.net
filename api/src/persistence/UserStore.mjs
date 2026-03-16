@@ -22,6 +22,7 @@ export class UserStore {
     const sub = claims.sub;
     const username = claims.preferred_username || claims.email || sub;
     const email = claims.email || '';
+    const displayName = claims.displayName || null;
     const jwtRoles = claims.roles || [];
     const hasJwtRoles = jwtRoles.length > 0;
     const roles = JSON.stringify(hasJwtRoles ? jwtRoles : ['user']);
@@ -40,28 +41,31 @@ export class UserStore {
     const rows = await this.database.query(
       `MERGE (u:User { sub: $sub })
        ON CREATE SET
-         u.username  = $username,
-         u.email     = $email,
-         u.roles     = $roles,
-         u.firstSeen = $now,
-         u.lastSeen  = $now
+         u.username    = $username,
+         u.email       = $email,
+         u.displayName = $displayName,
+         u.roles       = $roles,
+         u.firstSeen   = $now,
+         u.lastSeen    = $now
        ON MATCH SET
-         u.username  = $username,
-         u.email     = CASE WHEN $email <> '' THEN $email ELSE u.email END,
-         u.roles     = CASE WHEN $hasJwtRoles = true THEN $roles ELSE u.roles END,
-         u.lastSeen  = $now
+         u.username    = $username,
+         u.email       = CASE WHEN $email <> '' THEN $email ELSE u.email END,
+         u.displayName = CASE WHEN $displayName IS NOT NULL THEN $displayName ELSE u.displayName END,
+         u.roles       = CASE WHEN $hasJwtRoles = true THEN $roles ELSE u.roles END,
+         u.lastSeen    = $now
        WITH u
        OPTIONAL MATCH (t:Tenant {tenantId: $tenantId})
        FOREACH (_ IN CASE WHEN t IS NOT NULL THEN [1] ELSE [] END |
          MERGE (u)-[:BELONGS_TO]->(t)
        )
-       RETURN u.sub       AS sub,
-              u.username  AS username,
-              u.email     AS email,
-              u.roles     AS roles,
-              u.firstSeen AS firstSeen,
-              u.lastSeen  AS lastSeen`,
-      { sub, username, email, roles, hasJwtRoles, tenantId, now }
+       RETURN u.sub         AS sub,
+              u.username    AS username,
+              u.email       AS email,
+              u.displayName AS displayName,
+              u.roles       AS roles,
+              u.firstSeen   AS firstSeen,
+              u.lastSeen    AS lastSeen`,
+      { sub, username, email, displayName, roles, hasJwtRoles, tenantId, now }
     );
 
     const result = rows[0] || null;
@@ -82,12 +86,13 @@ export class UserStore {
     const rows = await this.database.query(
       `MATCH (u:User {sub: $sub})
        OPTIONAL MATCH (u)-[:BELONGS_TO]->(t:Tenant)
-       RETURN u.sub       AS sub,
-              u.username  AS username,
-              u.email     AS email,
-              u.roles     AS roles,
-              u.firstSeen AS firstSeen,
-              u.lastSeen  AS lastSeen,
+       RETURN u.sub         AS sub,
+              u.username    AS username,
+              u.email       AS email,
+              u.displayName AS displayName,
+              u.roles       AS roles,
+              u.firstSeen   AS firstSeen,
+              u.lastSeen    AS lastSeen,
               collect(t.tenantId) AS tenants`,
       { sub }
     );
@@ -128,12 +133,13 @@ export class UserStore {
     const rows = await this.database.query(
       `MATCH (u:User)
        OPTIONAL MATCH (u)-[:BELONGS_TO]->(t:Tenant)
-       RETURN u.sub       AS sub,
-              u.username  AS username,
-              u.email     AS email,
-              u.roles     AS roles,
-              u.firstSeen AS firstSeen,
-              u.lastSeen  AS lastSeen,
+       RETURN u.sub         AS sub,
+              u.username    AS username,
+              u.email       AS email,
+              u.displayName AS displayName,
+              u.roles       AS roles,
+              u.firstSeen   AS firstSeen,
+              u.lastSeen    AS lastSeen,
               collect(t.tenantId) AS tenants
        ORDER BY u.username`
     );
@@ -171,12 +177,13 @@ export class UserStore {
        ON MATCH SET
          u.roles     = $roles,
          u.lastSeen  = $now
-       RETURN u.sub       AS sub,
-              u.username  AS username,
-              u.email     AS email,
-              u.roles     AS roles,
-              u.firstSeen AS firstSeen,
-              u.lastSeen  AS lastSeen`,
+       RETURN u.sub         AS sub,
+              u.username    AS username,
+              u.email       AS email,
+              u.displayName AS displayName,
+              u.roles       AS roles,
+              u.firstSeen   AS firstSeen,
+              u.lastSeen    AS lastSeen`,
       { email, sub, roles: rolesJson, now }
     );
 
@@ -203,12 +210,13 @@ export class UserStore {
       `MATCH (u:User {sub: $sub})
        SET u.roles    = $roles,
            u.lastSeen = $now
-       RETURN u.sub       AS sub,
-              u.username  AS username,
-              u.email     AS email,
-              u.roles     AS roles,
-              u.firstSeen AS firstSeen,
-              u.lastSeen  AS lastSeen`,
+       RETURN u.sub         AS sub,
+              u.username    AS username,
+              u.email       AS email,
+              u.displayName AS displayName,
+              u.roles       AS roles,
+              u.firstSeen   AS firstSeen,
+              u.lastSeen    AS lastSeen`,
       { sub, roles: rolesJson, now }
     );
 

@@ -103,6 +103,7 @@ export interface QuestionnaireVersion {
   label: string;
   created: string;
   current: boolean;
+  reviewCount: number;
 }
 
 export interface AnswerState {

@@ -59,6 +59,7 @@ async function bootstrap() {
       sub: user.sub,
       preferred_username: user.preferred_username,
       email: user.email,
+      displayName: user.displayName || null,
       roles: user.roles,
       tenantId: user.tenantId || null,
     });

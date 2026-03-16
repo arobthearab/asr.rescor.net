@@ -446,6 +446,14 @@ export async function deleteDraft(draftId: string): Promise<unknown> {
   return handleResponse(response);
 }
 
+export async function deleteQuestionnaireVersion(version: string): Promise<unknown> {
+  const response = await fetch(`${ADMIN_Q}/versions/${encodeURIComponent(version)}`, {
+    method: 'DELETE',
+    headers: await authHeaders(),
+  });
+  return handleResponse(response);
+}
+
 export async function importYaml(yamlText: string): Promise<DraftDetail> {
   const token = await getAccessToken();
   const headers: Record<string, string> = { 'Content-Type': 'text/yaml' };

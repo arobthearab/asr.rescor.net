@@ -766,6 +766,62 @@ export function createQuestionnaireAdminRouter(database) {
     response.status(statusCode).json(body);
   });
 
+  // ── DELETE /versions/:version — delete unused version ─────────
+  router.delete('/versions/:version', async (request, response) => {
+    let statusCode = 200;
+    let body = null;
+
+    try {
+      const { version } = request.params;
+
+      // Check if snapshot exists
+      const snapshotResult = await database.query(
+        `MATCH (snapshot:QuestionnaireSnapshot {version: $version})
+         RETURN snapshot.version AS version`,
+        { version }
+      );
+
+      if (snapshotResult.length === 0) {
+        statusCode = 404;
+        body = { error: 'Version not found' };
+      } else {
+        // Block deletion of the current live version
+        const scoringConfiguration = await loadScoringConfiguration(database);
+        const currentVersion = scoringConfiguration.questionnaireVersion || null;
+
+        if (version === currentVersion) {
+          statusCode = 403;
+          body = { error: 'Cannot delete the current live version. Publish a different version first.' };
+        } else {
+          // Count active reviews using this version
+          const reviewResult = await database.query(
+            `MATCH (review:Review {questionnaireVersion: $version, active: true})
+             RETURN count(review) AS reviewCount`,
+            { version }
+          );
+          const reviewCount = reviewResult[0]?.reviewCount?.low ?? reviewResult[0]?.reviewCount ?? 0;
+
+          if (reviewCount > 0) {
+            statusCode = 409;
+            body = { error: `Cannot delete version with ${reviewCount} active assessment(s).` };
+          } else {
+            // Safe to hard-delete — no reviews, not current
+            await database.query(
+              `MATCH (snapshot:QuestionnaireSnapshot {version: $version}) DETACH DELETE snapshot`,
+              { version }
+            );
+            body = { deleted: true, version };
+          }
+        }
+      }
+    } catch (error) {
+      statusCode = 500;
+      body = { error: error.message };
+    }
+
+    response.status(statusCode).json(body);
+  });
+
   // ── POST /import — import from YAML text body ────────────────
   router.post('/import', async (request, response) => {
     let statusCode = 201;

@@ -126,9 +126,11 @@ export function createConfigRouter(database) {
 
       const result = await database.query(
         `MATCH (snapshot:QuestionnaireSnapshot)
+         OPTIONAL MATCH (review:Review {questionnaireVersion: snapshot.version, active: true})
          RETURN snapshot.version AS version,
                 snapshot.label   AS label,
-                snapshot.created AS created
+                snapshot.created AS created,
+                count(review)    AS reviewCount
          ORDER BY snapshot.created DESC`
       );
 
@@ -139,6 +141,7 @@ export function createConfigRouter(database) {
           label: record.label,
           created: record.created,
           current: record.version === currentVersion,
+          reviewCount: record.reviewCount?.low ?? record.reviewCount ?? 0,
         })),
       };
     } catch (error) {
