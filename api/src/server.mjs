@@ -18,6 +18,7 @@ import { createExportRouter } from './routes/exportDocuments.mjs';
 import { createAuthenticationMiddleware } from './middleware/authenticate.mjs';
 import { authorize } from './middleware/authorize.mjs';
 import { UserStore } from './persistence/UserStore.mjs';
+import { AuthEventStore } from './persistence/AuthEventStore.mjs';
 
 const PORT = 3100;
 
@@ -34,6 +35,7 @@ async function bootstrap() {
   const configuration = await createConfiguration();
   const database = await createDatabase(configuration);
   const userStore = new UserStore(database);
+  const authEventStore = new AuthEventStore(database);
 
   // Auth config from Infisical (optional — absent in dev = auth-optional)
   const tenantId = await configuration.getConfig('entra', 'tenantId') || null;
@@ -42,7 +44,7 @@ async function bootstrap() {
   const allowedTenants = allowedTenantsRaw ? allowedTenantsRaw.split(',').map((id) => id.trim()).filter(Boolean) : [];
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
-  const authenticate = createAuthenticationMiddleware({ isDevelopment, tenantId, clientId, userStore, allowedTenants });
+  const authenticate = createAuthenticationMiddleware({ isDevelopment, tenantId, clientId, userStore, allowedTenants, authEventStore });
 
   // Health check (unauthenticated)
   application.get('/api/health', (_request, response) => {
@@ -72,7 +74,7 @@ async function bootstrap() {
   application.use('/api/reviews', authorize('admin', 'reviewer', 'user'), createProposedChangesRouter(database));
   application.use('/api/reviews', authorize('admin', 'auditor'), createAuditorCommentsRouter(database));
   application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createRemediationRouter(database));
-  application.use('/api/admin', authorize('admin'), createAdminRouter(database, userStore));
+  application.use('/api/admin', authorize('admin'), createAdminRouter(database, userStore, authEventStore));
   application.use('/api/admin/questionnaire', authorize('admin'), createQuestionnaireAdminRouter(database));
   application.use('/api', createGateRouter(database));
   application.use('/api', createExportRouter(database));

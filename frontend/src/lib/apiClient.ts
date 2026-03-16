@@ -300,6 +300,7 @@ export async function reassignReview(
 // ════════════════════════════════════════════════════════════════════
 
 import type { RemediationItem, RemediationStatus, FunctionCode, ResponseType } from './types';
+import type { AuthEvent } from './types';
 
 export async function fetchRemediation(reviewId: string): Promise<RemediationItem[]> {
   const headers = await authHeaders();
@@ -562,4 +563,31 @@ export async function downloadReviewReport(reviewId: string, applicationName?: s
     `${BASE_URL}/reviews/${reviewId}/export/report.docx`,
     `ASR_Report_${safeName}.docx`,
   );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Admin — Auth Events (User Activity Log)
+// ════════════════════════════════════════════════════════════════════
+
+export async function fetchAuthEvents(params?: {
+  limit?: number;
+  offset?: number;
+  sub?: string;
+}): Promise<AuthEvent[]> {
+  const query = new URLSearchParams();
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.offset) query.set('offset', String(params.offset));
+  if (params?.sub) query.set('sub', params.sub);
+  const queryString = query.toString();
+  const url = `${BASE_URL}/admin/auth-events${queryString ? `?${queryString}` : ''}`;
+  const headers = await authHeaders();
+  const response = await fetch(url, { headers });
+  return (await handleResponse(response)) as AuthEvent[];
+}
+
+export async function fetchActiveUserCount(): Promise<number> {
+  const headers = await authHeaders();
+  const response = await fetch(`${BASE_URL}/admin/auth-events/active-count`, { headers });
+  const body = (await handleResponse(response)) as { activeCount: number };
+  return body.activeCount;
 }

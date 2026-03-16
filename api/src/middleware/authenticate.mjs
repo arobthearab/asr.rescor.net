@@ -22,6 +22,18 @@ function isLocalhostRequest(request) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Extract request metadata for auth event logging
+// ────────────────────────────────────────────────────────────────────
+
+function extractRequestMetadata(request) {
+  return {
+    ipAddress: request.headers['x-forwarded-for']?.split(',')[0]?.trim() || request.ip || 'unknown',
+    userAgent: request.headers['user-agent'] || 'unknown',
+    host: request.headers['x-forwarded-host'] || request.headers.host || 'unknown',
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────
 // createAuthenticationMiddleware
 // ────────────────────────────────────────────────────────────────────
 
@@ -32,8 +44,9 @@ function isLocalhostRequest(request) {
  * @param {string}     options.clientId        — Entra ID app registration client ID
  * @param {UserStore}  [options.userStore]     — optional UserStore for auto-registration
  * @param {string[]}   [options.allowedTenants] — whitelist of allowed tenant IDs (empty = all)
+ * @param {AuthEventStore} [options.authEventStore] — optional AuthEventStore for activity logging
  */
-export function createAuthenticationMiddleware({ isDevelopment = false, tenantId, clientId, userStore = null, allowedTenants = [] }) {
+export function createAuthenticationMiddleware({ isDevelopment = false, tenantId, clientId, userStore = null, allowedTenants = [], authEventStore = null }) {
   const developmentUser = Object.freeze({
     sub: 'dev-user-0000',
     preferred_username: 'developer',
@@ -44,6 +57,15 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
     iss: 'asr-dev',
     aud: 'asr-api',
   });
+
+  // Fire-and-forget auth event logging (non-blocking)
+  function logAuthEvent(sub, action, outcome, request, reason) {
+    if (!authEventStore) return;
+    const metadata = extractRequestMetadata(request);
+    authEventStore.logEvent({ sub, action, ...metadata, outcome, reason }).catch((error) => {
+      console.warn('[asr] Failed to log auth event:', error.message);
+    });
+  }
 
   let jwks = null;
   let issuer = null;
@@ -73,9 +95,11 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
       if (allowDevBypass) {
         request.user = { ...developmentUser };
         if (userStore) { await userStore.ensureUser(request.user); }
+        logAuthEvent(developmentUser.sub, 'login', 'success', request, 'dev-bypass');
         next();
         return;
       }
+      logAuthEvent('anonymous', 'login_failed', 'failure', request, 'no-token');
       response.status(401).json({ error: 'Authentication required' });
       return;
     }
@@ -86,9 +110,11 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
         // JWKS not configured but token was sent — use dev user
         request.user = { ...developmentUser };
         if (userStore) { await userStore.ensureUser(request.user); }
+        logAuthEvent(developmentUser.sub, 'login', 'success', request, 'dev-bypass-no-jwks');
         next();
         return;
       }
+      logAuthEvent('anonymous', 'login_failed', 'failure', request, 'jwks-not-configured');
       response.status(401).json({ error: 'Authentication not configured' });
       return;
     }
@@ -110,10 +136,12 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
         const issuerPattern = /^https:\/\/login\.microsoftonline\.com\/([0-9a-f-]+)\/v2\.0$/;
         const issuerMatch = issuerPattern.exec(payload.iss);
         if (!issuerMatch) {
+          logAuthEvent(payload.sub || 'unknown', 'login_failed', 'failure', request, 'untrusted-issuer');
           response.status(401).json({ error: 'Untrusted issuer' });
           return;
         }
         if (allowedTenants.length > 0 && !allowedTenants.includes(issuerMatch[1])) {
+          logAuthEvent(payload.sub || 'unknown', 'login_failed', 'failure', request, 'tenant-not-authorized');
           response.status(403).json({ error: 'Tenant not authorized' });
           return;
         }
@@ -137,6 +165,7 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
         }
       }
 
+      logAuthEvent(request.user.sub, 'login', 'success', request, null);
       next();
     } catch (error) {
       if (allowDevBypass) {
@@ -144,9 +173,11 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
         console.warn('[asr] Token validation failed in dev mode, using synthetic user:', error.message);
         request.user = { ...developmentUser };
         if (userStore) { await userStore.ensureUser(request.user); }
+        logAuthEvent(developmentUser.sub, 'login', 'success', request, 'dev-bypass-token-invalid');
         next();
         return;
       }
+      logAuthEvent('anonymous', 'login_failed', 'failure', request, error.message);
       response.status(401).json({ error: 'Invalid or expired token' });
     }
   };

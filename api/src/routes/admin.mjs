@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════
-// Admin Routes — user management + review reassignment
+// Admin Routes — user management, review reassignment, auth events
 // ════════════════════════════════════════════════════════════════════
 
 import { Router } from 'express';
@@ -8,7 +8,7 @@ import { Router } from 'express';
 // createAdminRouter
 // ────────────────────────────────────────────────────────────────────
 
-export function createAdminRouter(database, userStore) {
+export function createAdminRouter(database, userStore, authEventStore) {
   const router = Router();
 
   // ── List all users ─────────────────────────────────────────────
@@ -109,6 +109,42 @@ export function createAdminRouter(database, userStore) {
           body = result[0].review || result[0];
         }
       }
+    } catch (error) {
+      statusCode = 500;
+      body = { error: error.message };
+    }
+
+    response.status(statusCode).json(body);
+  });
+
+  // ── List recent auth events ────────────────────────────────────
+  router.get('/auth-events', async (request, response) => {
+    let statusCode = 200;
+    let body = [];
+
+    try {
+      const limit = Math.min(Math.max(parseInt(request.query.limit, 10) || 50, 1), 200);
+      const offset = Math.max(parseInt(request.query.offset, 10) || 0, 0);
+      const sub = request.query.sub || undefined;
+
+      body = await authEventStore.listRecentEvents({ limit, offset, sub });
+    } catch (error) {
+      statusCode = 500;
+      body = { error: error.message };
+    }
+
+    response.status(statusCode).json(body);
+  });
+
+  // ── Active user count (last 30 days) ───────────────────────────
+  router.get('/auth-events/active-count', async (_request, response) => {
+    let statusCode = 200;
+    let body = null;
+
+    try {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const activeCount = await authEventStore.countActiveUsers(thirtyDaysAgo);
+      body = { activeCount };
     } catch (error) {
       statusCode = 500;
       body = { error: error.message };

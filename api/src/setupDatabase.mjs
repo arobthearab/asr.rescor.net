@@ -16,6 +16,7 @@ const SCRIPTS = [
   '004-seed-gates.cypher',
   '005-seed-tenants.cypher',
   '006-seed-superusers.cypher',
+  '007-auth-events.cypher',
 ];
 
 // ────────────────────────────────────────────────────────────────────

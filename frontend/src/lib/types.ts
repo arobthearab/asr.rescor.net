@@ -264,3 +264,21 @@ export interface GatePreFillResult {
     rawScore: number;
   }>;
 }
+
+// ════════════════════════════════════════════════════════════════════
+// Auth Event types
+// ════════════════════════════════════════════════════════════════════
+
+export interface AuthEvent {
+  eventId: string;
+  action: 'login' | 'login_failed' | 'token_refresh' | 'logout';
+  timestamp: string;
+  ipAddress: string;
+  userAgent: string;
+  host: string;
+  outcome: 'success' | 'failure';
+  reason: string | null;
+  sub: string | null;
+  email: string | null;
+  username: string | null;
+}

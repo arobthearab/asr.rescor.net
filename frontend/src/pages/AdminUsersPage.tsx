@@ -28,6 +28,7 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
+import HistoryIcon from '@mui/icons-material/History';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import {
   fetchUsers,
@@ -37,6 +38,7 @@ import {
 } from '../lib/apiClient';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import UserMenu from '../components/UserMenu';
+import UserActivityLogDialog from '../components/UserActivityLogDialog';
 
 // ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +63,9 @@ export default function AdminUsersPage() {
   // Edit roles dialog
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const [editRoles, setEditRoles] = useState<string[]>([]);
+
+  // Activity log dialog
+  const [activityLogOpen, setActivityLogOpen] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -143,6 +148,9 @@ export default function AdminUsersPage() {
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             User Management
           </Typography>
+          <IconButton color="inherit" onClick={() => setActivityLogOpen(true)} title="User Activity Log">
+            <HistoryIcon />
+          </IconButton>
           <Button color="inherit" startIcon={<PersonAddIcon />} onClick={openProvision}>
             Provision User
           </Button>
@@ -269,7 +277,8 @@ export default function AdminUsersPage() {
           </Button>
         </DialogActions>
       </Dialog>
-
+      {/* ── Activity Log Dialog ──────────────────────────────────── */}
+      <UserActivityLogDialog open={activityLogOpen} onClose={() => setActivityLogOpen(false)} />
       {/* ── Toast ────────────────────────────────────────────────── */}
       <Snackbar
         open={toast !== null}
