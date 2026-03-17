@@ -1,0 +1,86 @@
+# ASR UAT deployment
+#
+# Prerequisites:
+#   - docker network create rescor-uat
+#   - .env in this directory with Infisical bootstrap vars + NODE_AUTH_TOKEN
+#   - frontend/.env.production with UAT VITE vars (baked into image at build time)
+#
+# Build and start:
+#   docker compose -f docker-compose.uat.yml build
+#   docker compose -f docker-compose.uat.yml up -d
+
+services:
+
+  neo4j:
+    image: neo4j:5.15-community
+    container_name: asr-neo4j
+    ports:
+      - "127.0.0.1:17474:7474"
+      - "127.0.0.1:17687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/${ASR_NEO4J_PASSWORD}
+      NEO4J_PLUGINS: '[]'
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+    volumes:
+      - asr-neo4j-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p ${ASR_NEO4J_PASSWORD} 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - rescor-uat
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      args:
+        NODE_AUTH_TOKEN: ${NODE_AUTH_TOKEN}
+    container_name: asr-api
+    environment:
+      - NODE_ENV=production
+      - PHASE=uat
+      - PORT=3100
+    ports:
+      - "127.0.0.1:3100:3100"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/tmp/asr/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3100/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - rescor-uat
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: asr-frontend
+    ports:
+      - "127.0.0.1:8002:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - rescor-uat
+    restart: unless-stopped
+
+volumes:
+  asr-neo4j-data:
+
+networks:
+  rescor-uat:
+    external: true

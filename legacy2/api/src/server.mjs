@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import { Recorder } from '@rescor/core-utils';
-import { ValidationError } from '@rescor/core-utils/errors';
+import { Recorder } from '@rescor-llc/core-utils';
+import { ValidationError } from '@rescor-llc/core-utils/errors';
 import { GraphStoreRepository } from './db/GraphStoreRepository.mjs';
 import { validateGraphPayload } from './db/validateGraphPayload.mjs';
 import { createOperations, getActiveAdapter } from './db/createOperations.mjs';

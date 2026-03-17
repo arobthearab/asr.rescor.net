@@ -1,4 +1,4 @@
-import { ConnectString, DB2Operations, ConnectionError, withAudit } from '@rescor/core-db';
+import { ConnectString, DB2Operations, ConnectionError, withAudit } from '@rescor-llc/core-db';
 import { SqliteCoreDbOperations } from './SqliteCoreDbOperations.mjs';
 
 function getDbAdapter() {

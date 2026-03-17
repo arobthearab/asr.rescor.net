@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { Recorder } from '@rescor/core-utils';
+import { Recorder } from '@rescor-llc/core-utils';
 import { createOperations, getActiveAdapter } from '../src/db/createOperations.mjs';
 
 const adapter = getActiveAdapter();

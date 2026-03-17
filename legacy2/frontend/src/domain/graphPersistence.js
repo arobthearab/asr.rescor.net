@@ -1,4 +1,4 @@
-import { ValidationError } from '@rescor/core-utils/errors';
+import { ValidationError } from '@rescor-llc/core-utils/errors';
 
 export const ASR_GRAPH_STORAGE_KEY = 'asr.linkedRiskGraph.v1';
 

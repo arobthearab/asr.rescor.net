@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { Operations, QueryError } from '@rescor/core-db';
+import { Operations, QueryError } from '@rescor-llc/core-db';
 
 export class SqliteCoreDbOperations extends Operations {
   constructor(options = {}) {

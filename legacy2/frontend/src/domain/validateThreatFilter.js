@@ -1,4 +1,4 @@
-import { ValidationError } from '@rescor/core-utils/errors';
+import { ValidationError } from '@rescor-llc/core-utils/errors';
 
 const MAX_FILTER_LENGTH = 120;
 

@@ -6,7 +6,7 @@
 // ════════════════════════════════════════════════════════════════════
 
 import neo4j from 'neo4j-driver';
-import { Neo4jOperations } from '@rescor/core-db';
+import { Neo4jOperations } from '@rescor-llc/core-db';
 
 // ────────────────────────────────────────────────────────────────────
 // SessionPerQueryWrapper — opens a fresh session for every query()
@@ -75,7 +75,7 @@ class SessionPerQueryWrapper {
 // ────────────────────────────────────────────────────────────────────
 
 export async function createConfiguration() {
-  const { Configuration } = await import('@rescor/core-config');
+  const { Configuration } = await import('@rescor-llc/core-config');
 
   const configuration = new Configuration({
     enableInfisical: true,

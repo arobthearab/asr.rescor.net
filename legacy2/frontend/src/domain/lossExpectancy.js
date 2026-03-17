@@ -1,4 +1,4 @@
-import { ValidationError } from '@rescor/core-utils/errors';
+import { ValidationError } from '@rescor-llc/core-utils/errors';
 import { computeControlEfficacy } from './stormRsk.js';
 
 function toFiniteNumber(value, fieldName) {

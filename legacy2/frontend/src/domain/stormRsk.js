@@ -1,4 +1,4 @@
-import { ValidationError } from '@rescor/core-utils/errors';
+import { ValidationError } from '@rescor-llc/core-utils/errors';
 
 const DEFAULT_BASE = 5;
 const DEFAULT_CURRENT = 1;

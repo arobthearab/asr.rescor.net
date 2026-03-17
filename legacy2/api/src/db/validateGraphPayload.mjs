@@ -1,4 +1,4 @@
-import { ValidationError } from '@rescor/core-utils/errors';
+import { ValidationError } from '@rescor-llc/core-utils/errors';
 
 function requireArray(value, fieldName) {
   if (!Array.isArray(value)) {

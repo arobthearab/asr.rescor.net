@@ -1,0 +1,29 @@
+# ASR API
+FROM node:20-alpine
+
+RUN apk add --no-cache curl
+
+WORKDIR /app
+
+ARG NODE_AUTH_TOKEN
+
+# Root .npmrc provides @rescor registry configuration
+COPY .npmrc ./
+COPY api/package*.json ./
+
+RUN NODE_AUTH_TOKEN=${NODE_AUTH_TOKEN} npm ci --only=production && npm cache clean --force
+
+COPY api/src ./src/
+
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+EXPOSE 3100
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3100/health || exit 1
+
+CMD ["node", "src/server.mjs"]

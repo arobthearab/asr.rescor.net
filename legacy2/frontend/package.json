@@ -19,7 +19,7 @@
     "parity:check": "node scripts/generate-legacy-parity-report.mjs --check"
   },
   "dependencies": {
-    "@rescor/core-utils": "file:../../core.rescor.net/packages/core-utils",
+    "@rescor-llc/core-utils": "file:../../core.rescor.net/packages/core-utils",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.7",

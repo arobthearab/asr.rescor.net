@@ -18,8 +18,8 @@
     "vitals:restart": "node scripts/vitalsigns.mjs restart"
   },
   "dependencies": {
-    "@rescor/core-db": "file:../../core.rescor.net/packages/core-db",
-    "@rescor/core-utils": "file:../../core.rescor.net/packages/core-utils",
+    "@rescor-llc/core-db": "file:../../core.rescor.net/packages/core-db",
+    "@rescor-llc/core-utils": "file:../../core.rescor.net/packages/core-utils",
     "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
     "express": "^4.21.2"

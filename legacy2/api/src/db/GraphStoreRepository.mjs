@@ -1,4 +1,4 @@
-import { QueryError } from '@rescor/core-db';
+import { QueryError } from '@rescor-llc/core-db';
 
 export class GraphStoreRepository {
   constructor({ operations, recorder }) {

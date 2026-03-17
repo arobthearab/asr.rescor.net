@@ -14,7 +14,7 @@ import {
   getEnvNumber,
   getEnvString,
   isTcpPortReachable
-} from '@rescor/core-utils';
+} from '@rescor-llc/core-utils';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
