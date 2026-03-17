@@ -4,7 +4,6 @@
 
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { loadScoringConfiguration } from '../scoring.mjs';
 import { authorize, requireOwnershipOrAdmin } from '../middleware/authorize.mjs';
 
 // ────────────────────────────────────────────────────────────────────
@@ -53,7 +52,8 @@ export function createReviewsRouter(database) {
       if (isAdmin) {
         cypher = `MATCH (review:Review)
                   WHERE review.active = true
-                  RETURN review
+                  OPTIONAL MATCH (review)-[:USES_QUESTIONNAIRE]->(q:Questionnaire)
+                  RETURN review, q.name AS questionnaireName
                   ORDER BY review.updated DESC`;
         parameters = {};
       } else {
@@ -63,13 +63,17 @@ export function createReviewsRouter(database) {
                     (review)-[:SCOPED_TO]->(:Tenant {tenantId: $tenantId})
                     OR NOT EXISTS { (review)-[:SCOPED_TO]->(:Tenant) }
                   )
-                  RETURN review
+                  OPTIONAL MATCH (review)-[:USES_QUESTIONNAIRE]->(q:Questionnaire)
+                  RETURN review, q.name AS questionnaireName
                   ORDER BY review.updated DESC`;
         parameters = { tenantId };
       }
 
       const result = await database.query(cypher, parameters);
-      body = result.map((record) => record.review || record);
+      body = result.map((record) => {
+        const review = record.review || record;
+        return { ...review, questionnaireName: record.questionnaireName || null };
+      });
     } catch (error) {
       statusCode = 500;
       body = { error: error.message };
@@ -120,8 +124,44 @@ export function createReviewsRouter(database) {
     const now = new Date().toISOString();
 
     try {
-      const scoringConfiguration = await loadScoringConfiguration(database);
-      const questionnaireVersion = scoringConfiguration.questionnaireVersion || null;
+      let questionnaireId = request.body.questionnaireId || null;
+
+      // Resolve questionnaire — auto-select if only one is active
+      if (!questionnaireId) {
+        const activeResult = await database.query(
+          `MATCH (q:Questionnaire {active: true})
+           RETURN q.questionnaireId AS questionnaireId`
+        );
+        if (activeResult.length === 1) {
+          questionnaireId = activeResult[0].questionnaireId;
+        } else if (activeResult.length > 1) {
+          statusCode = 400;
+          body = { error: 'Multiple active questionnaires — questionnaireId is required.' };
+          sendResult(response, statusCode, body);
+          return;
+        } else {
+          statusCode = 400;
+          body = { error: 'No active questionnaires available.' };
+          sendResult(response, statusCode, body);
+          return;
+        }
+      }
+
+      // Resolve current version from the questionnaire
+      const versionResult = await database.query(
+        `MATCH (q:Questionnaire {questionnaireId: $questionnaireId})-[:CURRENT_VERSION]->(s:QuestionnaireSnapshot)
+         RETURN s.version AS version`,
+        { questionnaireId }
+      );
+
+      if (versionResult.length === 0) {
+        statusCode = 400;
+        body = { error: 'Questionnaire has no published version.' };
+        sendResult(response, statusCode, body);
+        return;
+      }
+
+      const questionnaireVersion = versionResult[0].version;
       const tenantId = request.user?.tenantId || null;
 
       const result = await database.query(
@@ -147,6 +187,9 @@ export function createReviewsRouter(database) {
            updatedBy: $assessor
          })
          WITH review
+         MATCH (q:Questionnaire {questionnaireId: $questionnaireId})
+         MERGE (review)-[:USES_QUESTIONNAIRE]->(q)
+         WITH review
          OPTIONAL MATCH (tenant:Tenant {tenantId: $tenantId})
          FOREACH (_ IN CASE WHEN tenant IS NOT NULL THEN [1] ELSE [] END |
            MERGE (review)-[:SCOPED_TO]->(tenant)
@@ -158,6 +201,7 @@ export function createReviewsRouter(database) {
           assessor: getAssessor(request),
           notes: request.body.notes || '',
           questionnaireVersion,
+          questionnaireId,
           tenantId,
           now,
         }

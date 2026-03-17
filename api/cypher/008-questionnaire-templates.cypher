@@ -52,3 +52,9 @@ MERGE (d)-[:BELONGS_TO]->(q)
 MATCH (c:ScoringConfig {configId: 'default'}) // Migration: remove version pointer
 REMOVE c.questionnaireVersion, c.questionnaireLabel
 SET c.updated = datetime()
+
+MATCH (r:Review) // Migration: backfill USES_QUESTIONNAIRE for existing reviews
+WHERE NOT (r)-[:USES_QUESTIONNAIRE]->(:Questionnaire)
+  AND r.questionnaireVersion IS NOT NULL
+MATCH (s:QuestionnaireSnapshot {version: r.questionnaireVersion})-[:VERSION_OF]->(q:Questionnaire)
+MERGE (r)-[:USES_QUESTIONNAIRE]->(q)
