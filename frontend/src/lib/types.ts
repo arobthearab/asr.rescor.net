@@ -101,6 +101,9 @@ export interface QuestionnaireTemplate {
 export interface AppConfiguration {
   scoringConfiguration: import('./scoring').ScoringConfiguration;
   questionnaires: QuestionnaireTemplate[];
+  // Present on historical snapshots, absent on live config
+  questionnaireVersion?: string;
+  questionnaireLabel?: string;
   classification: ClassificationConfig;
   source: SourceConfig;
   environment: EnvironmentConfig;

@@ -204,7 +204,8 @@ export default function ReviewPage() {
         ]);
 
         const latestConfig = configData as AppConfiguration;
-        setCurrentVersion(latestConfig.questionnaireVersion);
+        const latestVersion = latestConfig.questionnaires?.[0]?.currentVersion ?? null;
+        setCurrentVersion(latestVersion);
 
         // Remediation count is updated via onRemediationDataChange callback
 
@@ -216,7 +217,7 @@ export default function ReviewPage() {
           const detail = reviewData as { review: Record<string, unknown>; answers: Array<{ answer: Record<string, unknown> | null; question: Record<string, unknown> | null }> };
           const pinnedVersion = (detail.review.questionnaireVersion as string) || null;
 
-          if (pinnedVersion && pinnedVersion !== latestConfig.questionnaireVersion) {
+          if (pinnedVersion && pinnedVersion !== latestVersion) {
             try {
               const historicalData = await fetchConfigurationVersion(pinnedVersion);
               appConfig = historicalData as AppConfiguration;
@@ -601,8 +602,8 @@ export default function ReviewPage() {
               <>
                 {isHistoricalVersion && (
                   <VersionBanner
-                    reviewLabel={configuration.questionnaireLabel}
-                    reviewVersion={configuration.questionnaireVersion}
+                    reviewLabel={configuration.questionnaireLabel ?? null}
+                    reviewVersion={configuration.questionnaireVersion ?? null}
                     currentVersion={currentVersion}
                   />
                 )}
