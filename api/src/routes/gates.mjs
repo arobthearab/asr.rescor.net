@@ -203,7 +203,7 @@ export function createGateRouter(database) {
         const preFilled = await applyPreFillRules(database, reviewId, gateId, rules, respondedBy, now);
 
         // ── Recompute review score ──────────────────────────────
-        await recomputeReviewScore(database, reviewId);
+        await recomputeReviewScore(database, reviewId, request.user?.tenantId);
 
         body = {
           gateId,
@@ -244,7 +244,7 @@ export function createGateRouter(database) {
         );
 
         // Recompute review score
-        await recomputeReviewScore(database, reviewId);
+        await recomputeReviewScore(database, reviewId, request.user?.tenantId);
 
         body = {
           gateId,
@@ -380,8 +380,8 @@ async function clearGateAnswers(database, reviewId, gateId) {
 
 // ── recomputeReviewScore — recalc from all current answers
 
-async function recomputeReviewScore(database, reviewId) {
-  const scoringConfiguration = await loadScoringConfiguration(database);
+async function recomputeReviewScore(database, reviewId, tenantId) {
+  const scoringConfiguration = await loadScoringConfiguration(database, tenantId);
 
   const answersResult = await database.query(
     `MATCH (review:Review {reviewId: $reviewId})-[:CONTAINS]->(answer:Answer)

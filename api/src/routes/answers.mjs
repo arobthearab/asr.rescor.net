@@ -28,7 +28,7 @@ export function createAnswersRouter(database) {
     const now = new Date().toISOString();
 
     try {
-      const scoringConfiguration = await loadScoringConfiguration(database);
+      const scoringConfiguration = await loadScoringConfiguration(database, request.user?.tenantId);
       const weightTierMap = await loadWeightTierMap(database);
 
       const measurements = await upsertAnswers(

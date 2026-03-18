@@ -71,8 +71,8 @@ function validateDraftData(data) {
 // Live config reader — builds editable draft shape from Neo4j
 // ────────────────────────────────────────────────────────────────────
 
-async function readLiveConfig(database) {
-  const scoringConfiguration = await loadScoringConfiguration(database);
+async function readLiveConfig(database, tenantId = null) {
+  const scoringConfiguration = await loadScoringConfiguration(database, tenantId);
 
   const classificationResult = await database.query(
     `MATCH (c:ClassificationQuestion)-[:HAS_CHOICE]->(choice:ClassificationChoice)
@@ -107,7 +107,10 @@ async function readLiveConfig(database) {
   );
 
   const complianceResult = await database.query(
-    `MATCH (config:ComplianceTagConfig) RETURN config`
+    `MATCH (config:ComplianceTagConfig)
+     WHERE config.tenantId = $tenantId OR config.tenantId IS NULL OR $tenantId IS NULL
+     RETURN config`,
+    { tenantId: tenantId || null }
   );
 
   // Build classification
@@ -491,16 +494,20 @@ export function createQuestionnaireAdminRouter(database) {
   const router = Router();
 
   // ── GET /drafts — list all drafts ─────────────────────────────
-  router.get('/drafts', async (_request, response) => {
+  router.get('/drafts', async (request, response) => {
     let statusCode = 200;
     let body = [];
 
     try {
+      const tenantId = request.user?.tenantId || null;
+
       const result = await database.query(
         `MATCH (draft:QuestionnaireDraft)
+         WHERE draft.tenantId = $tenantId OR draft.tenantId IS NULL
          OPTIONAL MATCH (draft)-[:BELONGS_TO]->(q:Questionnaire)
          RETURN draft, q.questionnaireId AS questionnaireId, q.name AS questionnaireName
-         ORDER BY draft.updated DESC`
+         ORDER BY draft.updated DESC`,
+        { tenantId }
       );
 
       body = result.map((record) => {
@@ -533,15 +540,17 @@ export function createQuestionnaireAdminRouter(database) {
       const label = request.body.label || 'Untitled Draft';
       const questionnaireId = request.body.questionnaireId || null;
       const creator = request.user?.preferred_username || 'system';
+      const tenantId = request.user?.tenantId || null;
       const draftId = randomUUID();
 
-      const liveConfig = await readLiveConfig(database);
+      const liveConfig = await readLiveConfig(database, tenantId);
 
       await database.query(
         `CREATE (draft:QuestionnaireDraft {
            draftId:   $draftId,
            label:     $label,
            status:    'DRAFT',
+           tenantId:  $tenantId,
            data:      $data,
            createdBy: $createdBy,
            created:   $now,
@@ -550,6 +559,7 @@ export function createQuestionnaireAdminRouter(database) {
         {
           draftId,
           label,
+          tenantId,
           data: JSON.stringify(liveConfig),
           createdBy: creator,
           now: new Date().toISOString(),
@@ -581,10 +591,13 @@ export function createQuestionnaireAdminRouter(database) {
     let body = null;
 
     try {
+      const tenantId = request.user?.tenantId || null;
+
       const result = await database.query(
         `MATCH (draft:QuestionnaireDraft {draftId: $draftId})
+         WHERE draft.tenantId = $tenantId OR draft.tenantId IS NULL
          RETURN draft`,
-        { draftId: request.params.draftId }
+        { draftId: request.params.draftId, tenantId }
       );
 
       if (result.length === 0) {
@@ -618,12 +631,14 @@ export function createQuestionnaireAdminRouter(database) {
     try {
       const { draftId } = request.params;
       const { label, data } = request.body;
+      const tenantId = request.user?.tenantId || null;
 
-      // Verify draft exists and is still DRAFT
+      // Verify draft exists, belongs to this tenant, and is still DRAFT
       const existing = await database.query(
         `MATCH (draft:QuestionnaireDraft {draftId: $draftId})
+         WHERE draft.tenantId = $tenantId OR draft.tenantId IS NULL
          RETURN draft.status AS status`,
-        { draftId }
+        { draftId, tenantId }
       );
 
       if (existing.length === 0) {
@@ -681,12 +696,14 @@ export function createQuestionnaireAdminRouter(database) {
     try {
       const { draftId } = request.params;
       const publisher = request.user?.preferred_username || 'system';
+      const tenantId = request.user?.tenantId || null;
 
-      // Fetch draft
+      // Fetch draft (tenant-scoped)
       const draftResult = await database.query(
         `MATCH (draft:QuestionnaireDraft {draftId: $draftId})
+         WHERE draft.tenantId = $tenantId OR draft.tenantId IS NULL
          RETURN draft`,
-        { draftId }
+        { draftId, tenantId }
       );
 
       if (draftResult.length === 0) {
@@ -755,8 +772,8 @@ export function createQuestionnaireAdminRouter(database) {
                 { draftId, publishedBy: publisher, now: new Date().toISOString() }
               );
 
-              // Clear scoring config cache since domains/questions changed
-              clearScoringConfigurationCache();
+              // Clear scoring config cache for this tenant
+              clearScoringConfigurationCache(tenantId);
 
               body = {
                 draftId,
@@ -784,11 +801,13 @@ export function createQuestionnaireAdminRouter(database) {
 
     try {
       const { draftId } = request.params;
+      const tenantId = request.user?.tenantId || null;
 
       const existing = await database.query(
         `MATCH (draft:QuestionnaireDraft {draftId: $draftId})
+         WHERE draft.tenantId = $tenantId OR draft.tenantId IS NULL
          RETURN draft.status AS status`,
-        { draftId }
+        { draftId, tenantId }
       );
 
       if (existing.length === 0) {
@@ -819,12 +838,14 @@ export function createQuestionnaireAdminRouter(database) {
 
     try {
       const { version } = request.params;
+      const tenantId = request.user?.tenantId || null;
 
-      // Check if snapshot exists
+      // Check if snapshot exists and belongs to this tenant
       const snapshotResult = await database.query(
         `MATCH (snapshot:QuestionnaireSnapshot {version: $version})
+         WHERE snapshot.tenantId = $tenantId OR snapshot.tenantId IS NULL
          RETURN snapshot.version AS version`,
-        { version }
+        { version, tenantId }
       );
 
       if (snapshotResult.length === 0) {
@@ -952,6 +973,7 @@ export function createQuestionnaireAdminRouter(database) {
       };
 
       const creator = request.user?.preferred_username || 'system';
+      const tenantId = request.user?.tenantId || null;
       const draftId = randomUUID();
       const draftLabel = label || parsed.questionnaire_label || 'YAML Import';
       const questionnaireId = request.body.questionnaireId || null;
@@ -961,6 +983,7 @@ export function createQuestionnaireAdminRouter(database) {
            draftId:   $draftId,
            label:     $label,
            status:    'DRAFT',
+           tenantId:  $tenantId,
            data:      $data,
            createdBy: $createdBy,
            created:   $now,
@@ -969,6 +992,7 @@ export function createQuestionnaireAdminRouter(database) {
         {
           draftId,
           label: draftLabel,
+          tenantId,
           data: JSON.stringify(draftData),
           createdBy: creator,
           now: new Date().toISOString(),
@@ -1000,7 +1024,7 @@ export function createQuestionnaireAdminRouter(database) {
 
     try {
       const format = request.query.format || 'json';
-      const liveConfig = await readLiveConfig(database);
+      const liveConfig = await readLiveConfig(database, request.user?.tenantId);
 
       if (format === 'yaml') {
         const yamlData = buildYamlExport(liveConfig);

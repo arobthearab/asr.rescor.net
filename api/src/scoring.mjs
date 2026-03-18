@@ -11,38 +11,63 @@
 //   4. Question.choiceScores (per-question override)
 // ════════════════════════════════════════════════════════════════════
 
-let cachedScoringConfiguration = null;
+// Per-tenant cache: cacheKey is tenantId string, or 'global' when no tenantId
+const scoringConfigCache = new Map();
 
 // ────────────────────────────────────────────────────────────────────
-// loadScoringConfiguration — fetch from Neo4j, cache in memory
+// loadScoringConfiguration — fetch from Neo4j, cache per tenant
+// Falls back to {configId: 'default'} when no tenant-specific node exists.
 // ────────────────────────────────────────────────────────────────────
 
-export async function loadScoringConfiguration(database) {
-  let answer = cachedScoringConfiguration;
+export async function loadScoringConfiguration(database, tenantId = null) {
+  const cacheKey = tenantId || 'global';
+  let answer = scoringConfigCache.get(cacheKey) ?? null;
 
   if (answer == null) {
-    const result = await database.query(
-      `MATCH (config:ScoringConfig {configId: 'default'}) RETURN config`
+    answer = await fetchScoringConfig(database, tenantId);
+    scoringConfigCache.set(cacheKey, answer);
+  }
+
+  return answer;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// fetchScoringConfig — query Neo4j, fall back to global default
+// ────────────────────────────────────────────────────────────────────
+
+async function fetchScoringConfig(database, tenantId) {
+  let rows = [];
+
+  if (tenantId) {
+    rows = await database.query(
+      `MATCH (config:ScoringConfig {tenantId: $tenantId}) RETURN config LIMIT 1`,
+      { tenantId }
     );
+  }
 
-    if (result.length > 0) {
-      const config = result[0].config || result[0];
-      answer = {
-        dampingFactor: config.dampingFactor ?? 4,
-        rawMax: config.rawMax ?? 134,
-        ratingThresholds: config.ratingThresholds ?? [25, 50, 75],
-        ratingLabels: config.ratingLabels ?? ['Low', 'Moderate', 'Elevated', 'Critical'],
-      };
-    } else {
-      answer = {
-        dampingFactor: 4,
-        rawMax: 134,
-        ratingThresholds: [25, 50, 75],
-        ratingLabels: ['Low', 'Moderate', 'Elevated', 'Critical'],
-      };
-    }
+  if (rows.length === 0) {
+    rows = await database.query(
+      `MATCH (config:ScoringConfig {configId: 'default'}) RETURN config LIMIT 1`
+    );
+  }
 
-    cachedScoringConfiguration = answer;
+  let answer;
+
+  if (rows.length > 0) {
+    const config = rows[0].config || rows[0];
+    answer = {
+      dampingFactor: config.dampingFactor ?? 4,
+      rawMax: config.rawMax ?? 134,
+      ratingThresholds: config.ratingThresholds ?? [25, 50, 75],
+      ratingLabels: config.ratingLabels ?? ['Low', 'Moderate', 'Elevated', 'Critical'],
+    };
+  } else {
+    answer = {
+      dampingFactor: 4,
+      rawMax: 134,
+      ratingThresholds: [25, 50, 75],
+      ratingLabels: ['Low', 'Moderate', 'Elevated', 'Critical'],
+    };
   }
 
   return answer;
@@ -50,10 +75,15 @@ export async function loadScoringConfiguration(database) {
 
 // ────────────────────────────────────────────────────────────────────
 // clearScoringConfigurationCache — call after admin updates config
+// Pass tenantId to clear only that tenant's entry; omit to clear all.
 // ────────────────────────────────────────────────────────────────────
 
-export function clearScoringConfigurationCache() {
-  cachedScoringConfiguration = null;
+export function clearScoringConfigurationCache(tenantId = null) {
+  if (tenantId != null) {
+    scoringConfigCache.delete(tenantId);
+  } else {
+    scoringConfigCache.clear();
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────

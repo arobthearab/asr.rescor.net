@@ -20,13 +20,15 @@ export function createConfigRouter(database) {
 
     try {
       const requestedVersion = request.query.version || null;
+      const tenantId = request.user?.tenantId || null;
 
       if (requestedVersion) {
         // ── Historical snapshot lookup ───────────────────────────
         const snapshotResult = await database.query(
           `MATCH (snapshot:QuestionnaireSnapshot {version: $version})
+           WHERE snapshot.tenantId = $tenantId OR snapshot.tenantId IS NULL OR $tenantId IS NULL
            RETURN snapshot.data AS data, snapshot.label AS label`,
-          { version: requestedVersion }
+          { version: requestedVersion, tenantId }
         );
 
         if (snapshotResult.length === 0) {
@@ -37,7 +39,7 @@ export function createConfigRouter(database) {
         }
       } else {
         // ── Current (live) questionnaire ──────────────────────────
-        const scoringConfiguration = await loadScoringConfiguration(database);
+        const scoringConfiguration = await loadScoringConfiguration(database, tenantId);
 
         const classificationResult = await database.query(
           `MATCH (classification:ClassificationQuestion)-[:HAS_CHOICE]->(choice:ClassificationChoice)
@@ -78,7 +80,7 @@ export function createConfigRouter(database) {
 
         const policyLookupMap = await loadPolicyLookup(database);
         const csfLookupMap = await loadCsfLookup(database);
-        const tagConfigMap = await loadComplianceTagConfigs(database);
+        const tagConfigMap = await loadComplianceTagConfigs(database, tenantId);
 
         const questionnairesResult = await database.query(
           `MATCH (q:Questionnaire)
@@ -115,12 +117,12 @@ export function createConfigRouter(database) {
   });
 
   // ── Scoring config only ────────────────────────────────────────
-  router.get('/scoring', async (_request, response) => {
+  router.get('/scoring', async (request, response) => {
     let statusCode = 200;
     let body = null;
 
     try {
-      body = await loadScoringConfiguration(database);
+      body = await loadScoringConfiguration(database, request.user?.tenantId);
     } catch (error) {
       statusCode = 500;
       body = { error: error.message };
@@ -136,11 +138,14 @@ export function createConfigRouter(database) {
 
     try {
       const questionnaireId = request.query.questionnaireId || null;
+      const tenantId = request.user?.tenantId || null;
 
       // Determine current versions from Questionnaire → CURRENT_VERSION
       const currentVersionsResult = await database.query(
         `MATCH (q:Questionnaire)-[:CURRENT_VERSION]->(s:QuestionnaireSnapshot)
-         RETURN s.version AS version`
+         WHERE s.tenantId = $tenantId OR s.tenantId IS NULL OR $tenantId IS NULL
+         RETURN s.version AS version`,
+        { tenantId }
       );
       const currentVersionSet = new Set(
         currentVersionsResult.map((record) => record.version)
@@ -149,6 +154,7 @@ export function createConfigRouter(database) {
       // Build snapshot query with optional questionnaireId filter
       const snapshotCypher = questionnaireId
         ? `MATCH (snapshot:QuestionnaireSnapshot)-[:VERSION_OF]->(q:Questionnaire {questionnaireId: $questionnaireId})
+           WHERE snapshot.tenantId = $tenantId OR snapshot.tenantId IS NULL OR $tenantId IS NULL
            OPTIONAL MATCH (review:Review {questionnaireVersion: snapshot.version, active: true})
            RETURN snapshot.version AS version,
                   snapshot.label   AS label,
@@ -156,6 +162,7 @@ export function createConfigRouter(database) {
                   count(review)    AS reviewCount
            ORDER BY snapshot.created DESC`
         : `MATCH (snapshot:QuestionnaireSnapshot)
+           WHERE snapshot.tenantId = $tenantId OR snapshot.tenantId IS NULL OR $tenantId IS NULL
            OPTIONAL MATCH (review:Review {questionnaireVersion: snapshot.version, active: true})
            RETURN snapshot.version AS version,
                   snapshot.label   AS label,
@@ -163,7 +170,7 @@ export function createConfigRouter(database) {
                   count(review)    AS reviewCount
            ORDER BY snapshot.created DESC`;
 
-      const snapshotParams = questionnaireId ? { questionnaireId } : {};
+      const snapshotParams = questionnaireId ? { questionnaireId, tenantId } : { tenantId };
       const result = await database.query(snapshotCypher, snapshotParams);
 
       body = {
@@ -285,10 +292,12 @@ function buildTranscendentalResponse(records, questionKey, codeKey) {
 // loadComplianceTagConfigs — tag → { action, baseUrl? } map
 // ────────────────────────────────────────────────────────────────────
 
-async function loadComplianceTagConfigs(database) {
+async function loadComplianceTagConfigs(database, tenantId) {
   const result = await database.query(
     `MATCH (config:ComplianceTagConfig)
-     RETURN config.tag AS tag, config.action AS action, config.baseUrl AS baseUrl`
+     WHERE config.tenantId = $tenantId OR config.tenantId IS NULL OR $tenantId IS NULL
+     RETURN config.tag AS tag, config.action AS action, config.baseUrl AS baseUrl`,
+    { tenantId: tenantId || null }
   );
 
   const configMap = {};
