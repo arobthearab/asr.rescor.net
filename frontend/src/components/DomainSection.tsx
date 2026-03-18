@@ -31,6 +31,7 @@ interface DomainSectionProps {
   disabled: boolean;
   dampingFactor: number;
   deploymentArchetype: string | null;
+  gateLabelMap: Record<string, string>;
 }
 
 function answerKey(domainIndex: number, questionIndex: number): string {
@@ -46,6 +47,7 @@ export default function DomainSection({
   disabled,
   dampingFactor,
   deploymentArchetype,
+  gateLabelMap,
 }: DomainSectionProps) {
   const [expanded, setExpanded] = useState(true);
   const [selectedChip, setSelectedChip] = useState<ComplianceRef | null>(null);
@@ -138,6 +140,7 @@ export default function DomainSection({
               weightValue={weightValue}
               classificationFactor={classificationFactor}
               maxMeasurement={maxMeasurement}
+              gateLabelMap={gateLabelMap}
             />
           );
         })}

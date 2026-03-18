@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Alert,
   Box,
-  Card,
-  CardContent,
   Chip,
   FormControlLabel,
   Radio,
@@ -9,6 +12,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LockIcon from '@mui/icons-material/Lock';
 import RskChip, {
   WEIGHT_CHIP_COLORS,
@@ -19,8 +23,19 @@ import type { QuestionConfig, AnswerState } from '../lib/types';
 // ════════════════════════════════════════════════════════════════════
 // QuestionCard
 // ════════════════════════════════════════════════════════════════════
-// Individual question with choice radios, N/A option, notes,
+// Collapsible question with choice radios, N/A option, notes,
 // and uniform RskChip row for Weight + Question score + compliance.
+// Gated (pre-filled) questions default to collapsed; all others
+// default to expanded. Any question can be toggled by the user.
+
+/** Humanize a raw gateId like LEGAL_FERPA → "Legal — FERPA" */
+function humanizeGateId(gateId: string): string {
+  const parts = gateId.split('_');
+  if (parts.length < 2) return gateId;
+  const func = parts[0].charAt(0) + parts[0].slice(1).toLowerCase();
+  const rest = parts.slice(1).map((p) => p.charAt(0) + p.slice(1).toLowerCase()).join(' ');
+  return `${func} — ${rest}`;
+}
 
 interface QuestionCardProps {
   question: QuestionConfig;
@@ -31,6 +46,8 @@ interface QuestionCardProps {
   classificationFactor: number;
   /** Max possible measurement for color scaling — classificationFactor itself */
   maxMeasurement: number;
+  /** Friendly labels for gate IDs (gateId → label). Falls back to humanized gateId. */
+  gateLabelMap?: Record<string, string>;
 }
 
 export default function QuestionCard({
@@ -41,7 +58,11 @@ export default function QuestionCard({
   weightValue,
   classificationFactor,
   maxMeasurement,
+  gateLabelMap,
 }: QuestionCardProps) {
+  const isGated = Boolean(answer.gatedBy);
+  const [expanded, setExpanded] = useState(!isGated);
+
   function handleChoiceChange(
     _event: React.ChangeEvent<HTMLInputElement>,
     value: string,
@@ -76,14 +97,25 @@ export default function QuestionCard({
   const questionNumber = `${question.domainIndex}.${question.questionIndex + 1}`;
   const weightColor = WEIGHT_CHIP_COLORS[question.weightTier] || '#78909C';
   const isAnswered = answer.choiceIndex !== null;
-  const isGated = Boolean(answer.gatedBy);
   const displayMeasurement = isAnswered ? Math.ceil(answer.measurement) : 0;
+  const gateLabel = isGated
+    ? (gateLabelMap?.[answer.gatedBy!] ?? humanizeGateId(answer.gatedBy!))
+    : '';
 
   return (
-    <Card variant="outlined" sx={{ mb: 1.5 }}>
-      <CardContent sx={{ pb: '12px !important' }}>
-        {/* Header row */}
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
+    <Accordion
+      variant="outlined"
+      expanded={expanded}
+      onChange={() => setExpanded(!expanded)}
+      disableGutters
+      sx={{ mb: 1.5, '&:before': { display: 'none' } }}
+    >
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon />}
+        sx={{ minHeight: 40, '& .MuiAccordionSummary-content': { my: 0.5, flexWrap: 'wrap', gap: 0.5, alignItems: 'center' } }}
+      >
+        {/* Question number + text */}
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', flex: 1, minWidth: 200, mr: 1 }}>
           <Typography
             variant="body2"
             fontWeight={700}
@@ -96,16 +128,8 @@ export default function QuestionCard({
           </Typography>
         </Box>
 
-        {/* Chip row — Weight + Question score + compliance refs */}
-        <Box
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 0.5,
-            ml: 4,
-            mb: 1,
-          }}
-        >
+        {/* Chip row — Weight + Question score + gated indicator + answer preview */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
           <RskChip
             tag="Weight"
             value={question.weightTier}
@@ -120,14 +144,31 @@ export default function QuestionCard({
           {isGated && (
             <Chip
               icon={<LockIcon sx={{ fontSize: '0.8rem' }} />}
-              label={`Pre-filled by ${answer.gatedBy}`}
+              label={`Auto-answered by ${gateLabel}`}
               size="small"
               variant="outlined"
               color="info"
               sx={{ fontSize: '0.7rem', height: 22 }}
             />
           )}
+          {isAnswered && !expanded && (
+            <Chip
+              label={answer.choiceText}
+              size="small"
+              variant="outlined"
+              sx={{ fontSize: '0.7rem', height: 22, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}
+            />
+          )}
         </Box>
+      </AccordionSummary>
+
+      <AccordionDetails sx={{ pt: 0, pb: 1.5, px: 2 }}>
+        {/* Info alert for gated questions */}
+        {isGated && (
+          <Alert severity="info" sx={{ mb: 1, ml: 4 }}>
+            This answer was pre-filled by <strong>{gateLabel}</strong>. You may select a different answer to override.
+          </Alert>
+        )}
 
         {/* Choice radios */}
         <RadioGroup
@@ -138,7 +179,7 @@ export default function QuestionCard({
             <FormControlLabel
               key={index}
               value={String(index)}
-              disabled={disabled || isGated}
+              disabled={disabled}
               control={<Radio size="small" sx={{ py: 0.25 }} />}
               label={
                 <Typography variant="body2">
@@ -157,7 +198,7 @@ export default function QuestionCard({
           ))}
           <FormControlLabel
             value="-1"
-            disabled={disabled || isGated}
+            disabled={disabled}
             control={<Radio size="small" sx={{ py: 0.25 }} />}
             label={
               <Typography variant="body2" color="text.secondary">
@@ -188,8 +229,8 @@ export default function QuestionCard({
           sx={{ mt: 1, ml: 4, width: 'calc(100% - 32px)' }}
           slotProps={{ input: { sx: { fontSize: '0.8rem' } } }}
         />
-      </CardContent>
-    </Card>
+      </AccordionDetails>
+    </Accordion>
   );
 }
 

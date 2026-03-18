@@ -7,12 +7,19 @@ import type { ScoringConfiguration, ScoreResult } from '../lib/scoring';
 // ════════════════════════════════════════════════════════════════════
 // Sticky panel showing live RSK score, normalized %, and rating chip.
 
+interface DomainProgress {
+  name: string;
+  answered: number;
+  total: number;
+}
+
 interface ScoreDashboardProps {
   score: ScoreResult;
   residualScore: ScoreResult | null;
   scoringConfiguration: ScoringConfiguration;
   answeredCount: number;
   totalCount: number;
+  domainProgress?: DomainProgress[];
 }
 
 const RATING_COLORS: Record<string, string> = {
@@ -28,6 +35,7 @@ export default function ScoreDashboard({
   scoringConfiguration,
   answeredCount,
   totalCount,
+  domainProgress,
 }: ScoreDashboardProps) {
   const progressPercent = totalCount > 0 ? (answeredCount / totalCount) * 100 : 0;
   const ratingColor = RATING_COLORS[score.rating] || brandColors.gray;
@@ -147,6 +155,28 @@ export default function ScoreDashboard({
           },
         }}
       />
+
+      {/* Per-domain progress */}
+      {domainProgress && domainProgress.length > 0 && (
+        <Box sx={{ mt: 1.5 }}>
+          {domainProgress.map((domain) => {
+            return (
+              <Box key={domain.name} sx={{ display: 'flex', alignItems: 'center', mb: 0.25 }}>
+                <Typography
+                  variant="caption"
+                  sx={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', mr: 0.5 }}
+                  title={domain.name}
+                >
+                  {domain.name}
+                </Typography>
+                <Typography variant="caption" color={domain.answered === domain.total ? 'success.main' : 'text.secondary'} sx={{ flexShrink: 0 }}>
+                  {domain.answered}/{domain.total}
+                </Typography>
+              </Box>
+            );
+          })}
+        </Box>
+      )}
 
       {/* Thresholds legend */}
       <Box sx={{ mt: 2 }}>

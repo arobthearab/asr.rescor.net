@@ -34,6 +34,7 @@ import {
   fetchConfiguration,
   fetchConfigurationVersion,
   fetchReview,
+  fetchGateAnswers,
   saveAnswers,
   submitReview,
   updateClassification,
@@ -104,6 +105,9 @@ export default function ReviewPage() {
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  // ── Gate label map for collapsible question display ────────────
+  const [gateLabelMap, setGateLabelMap] = useState<Record<string, string>>({});
 
   // ── Weight tier map for measurements ──────────────────────────
   const weightTierMap = useMemo(() => {
@@ -193,6 +197,27 @@ export default function ReviewPage() {
     }
     return count;
   }, [configuration, deploymentArchetype]);
+
+  // ── Per-domain progress breakdown ─────────────────────────────
+  const domainProgress = useMemo(() => {
+    if (!configuration) return [];
+    return configuration.domains.map((domain, domainIndex) => {
+      let total = 0;
+      let answered = 0;
+      for (const question of domain.questions) {
+        const applicability = question.applicability ?? [];
+        if (applicability.length === 0 || !deploymentArchetype || applicability.includes(deploymentArchetype)) {
+          total++;
+          const key = answerKey(domainIndex, question.questionIndex);
+          const answer = answers.get(key);
+          if (answer && answer.choiceIndex !== null) {
+            answered++;
+          }
+        }
+      }
+      return { name: domain.name, answered, total };
+    });
+  }, [configuration, answers, deploymentArchetype]);
 
   // ── Load configuration + review on mount ──────────────────────
   useEffect(() => {
@@ -297,6 +322,19 @@ export default function ReviewPage() {
           }
 
           setAnswers(answerMap);
+
+          // Load gate labels for collapsible question display
+          try {
+            const gateData = await fetchGateAnswers(reviewId!);
+            const labelMap: Record<string, string> = {};
+            for (const gate of gateData) {
+              const func = gate.function.charAt(0) + gate.function.slice(1).toLowerCase();
+              labelMap[gate.gateId] = `${func} — ${gate.text}`;
+            }
+            setGateLabelMap(labelMap);
+          } catch {
+            // Non-critical — gate labels fall back to humanized gateId
+          }
         } else {
           setConfiguration(latestConfig);
         }
@@ -516,6 +554,19 @@ export default function ReviewPage() {
           rating: (updatedReview.rating as string) || previous.rating,
         } : previous);
       }
+
+      // Refresh gate labels (gates may have changed)
+      try {
+        const gateData = await fetchGateAnswers(reviewId);
+        const labelMap: Record<string, string> = {};
+        for (const gate of gateData) {
+          const func = gate.function.charAt(0) + gate.function.slice(1).toLowerCase();
+          labelMap[gate.gateId] = `${func} — ${gate.text}`;
+        }
+        setGateLabelMap(labelMap);
+      } catch {
+        // Non-critical
+      }
     } catch (error) {
       setErrorMessage((error as Error).message);
     }
@@ -652,6 +703,7 @@ export default function ReviewPage() {
                     disabled={isReadOnly}
                     dampingFactor={configuration.scoringConfiguration.dampingFactor}
                     deploymentArchetype={deploymentArchetype}
+                    gateLabelMap={gateLabelMap}
                   />
                 ))}
               </>
@@ -670,6 +722,7 @@ export default function ReviewPage() {
               scoringConfiguration={configuration.scoringConfiguration}
               answeredCount={answeredCount}
               totalCount={totalQuestionCount}
+              domainProgress={domainProgress}
             />
           </Grid>
         </Grid>

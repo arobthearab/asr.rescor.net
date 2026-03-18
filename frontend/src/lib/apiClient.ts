@@ -580,7 +580,7 @@ export async function fetchAuthEvents(params?: {
   limit?: number;
   offset?: number;
   sub?: string;
-}): Promise<AuthEvent[]> {
+}): Promise<{ events: AuthEvent[]; total: number }> {
   const query = new URLSearchParams();
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.offset) query.set('offset', String(params.offset));
@@ -589,7 +589,7 @@ export async function fetchAuthEvents(params?: {
   const url = `${BASE_URL}/admin/auth-events${queryString ? `?${queryString}` : ''}`;
   const headers = await authHeaders();
   const response = await fetch(url, { headers });
-  return (await handleResponse(response)) as AuthEvent[];
+  return (await handleResponse(response)) as { events: AuthEvent[]; total: number };
 }
 
 export async function fetchActiveUserCount(): Promise<number> {
@@ -597,4 +597,37 @@ export async function fetchActiveUserCount(): Promise<number> {
   const response = await fetch(`${BASE_URL}/admin/auth-events/active-count`, { headers });
   const body = (await handleResponse(response)) as { activeCount: number };
   return body.activeCount;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Admin — Auth Sessions (grouped activity log)
+// ════════════════════════════════════════════════════════════════════
+
+export async function fetchAuthSessions(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<{ sessions: import('./types').AuthSession[]; total: number }> {
+  const query = new URLSearchParams();
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.offset) query.set('offset', String(params.offset));
+  const queryString = query.toString();
+  const url = `${BASE_URL}/admin/auth-sessions${queryString ? `?${queryString}` : ''}`;
+  const headers = await authHeaders();
+  const response = await fetch(url, { headers });
+  return (await handleResponse(response)) as { sessions: import('./types').AuthSession[]; total: number };
+}
+
+export async function fetchSessionEvents(params: {
+  sub: string | null;
+  from: string;
+  to: string;
+}): Promise<import('./types').AuthEvent[]> {
+  const query = new URLSearchParams();
+  if (params.sub) query.set('sub', params.sub);
+  query.set('from', params.from);
+  query.set('to', params.to);
+  const url = `${BASE_URL}/admin/auth-sessions/events?${query.toString()}`;
+  const headers = await authHeaders();
+  const response = await fetch(url, { headers });
+  return (await handleResponse(response)) as import('./types').AuthEvent[];
 }

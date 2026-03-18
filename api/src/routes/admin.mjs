@@ -120,14 +120,19 @@ export function createAdminRouter(database, userStore, authEventStore) {
   // ── List recent auth events ────────────────────────────────────
   router.get('/auth-events', async (request, response) => {
     let statusCode = 200;
-    let body = [];
+    let body = {};
 
     try {
       const limit = Math.min(Math.max(parseInt(request.query.limit, 10) || 50, 1), 200);
       const offset = Math.max(parseInt(request.query.offset, 10) || 0, 0);
       const sub = request.query.sub || undefined;
 
-      body = await authEventStore.listRecentEvents({ limit, offset, sub });
+      const [events, total] = await Promise.all([
+        authEventStore.listRecentEvents({ limit, offset, sub }),
+        authEventStore.countEvents({ sub }),
+      ]);
+
+      body = { events, total };
     } catch (error) {
       statusCode = 500;
       body = { error: error.message };
@@ -145,6 +150,44 @@ export function createAdminRouter(database, userStore, authEventStore) {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const activeCount = await authEventStore.countActiveUsers(thirtyDaysAgo);
       body = { activeCount };
+    } catch (error) {
+      statusCode = 500;
+      body = { error: error.message };
+    }
+
+    response.status(statusCode).json(body);
+  });
+
+  // ── Session-grouped auth events ────────────────────────────────
+  router.get('/auth-sessions', async (request, response) => {
+    let statusCode = 200;
+    let body = {};
+
+    try {
+      const limit = Math.min(Math.max(parseInt(request.query.limit, 10) || 20, 1), 100);
+      const offset = Math.max(parseInt(request.query.offset, 10) || 0, 0);
+
+      body = await authEventStore.listSessions({ limit, offset });
+    } catch (error) {
+      statusCode = 500;
+      body = { error: error.message };
+    }
+
+    response.status(statusCode).json(body);
+  });
+
+  // ── Events within a single session ─────────────────────────────
+  router.get('/auth-sessions/events', async (request, response) => {
+    let statusCode = 200;
+    let body = [];
+
+    try {
+      const { sub, from, to } = request.query;
+      if (!from || !to) {
+        response.status(400).json({ error: 'from and to query parameters are required' });
+        return;
+      }
+      body = await authEventStore.listSessionEvents({ sub: sub || null, from, to });
     } catch (error) {
       statusCode = 500;
       body = { error: error.message };

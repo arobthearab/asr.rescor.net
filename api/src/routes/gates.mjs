@@ -202,6 +202,7 @@ export function createGateRouter(database) {
           preFilled,
         };
       } catch (error) {
+        console.error('[gates] PUT error:', error);
         statusCode = 500;
         body = { error: error.message };
       }

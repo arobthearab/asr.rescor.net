@@ -298,3 +298,17 @@ export interface AuthEvent {
   email: string | null;
   username: string | null;
 }
+
+export interface AuthSession {
+  sub: string | null;
+  email: string | null;
+  username: string | null;
+  newestTimestamp: string;
+  oldestTimestamp: string;
+  eventCount: number;
+  successCount: number;
+  failureCount: number;
+  actions: string[];
+  ipAddresses: string[];
+  hosts: string[];
+}

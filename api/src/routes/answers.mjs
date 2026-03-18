@@ -112,6 +112,7 @@ async function upsertAnswers(database, reviewId, answers, weightTierMap, classif
          existingAnswer.weightTier = $weightTier,
          existingAnswer.measurement = $measurement,
          existingAnswer.notes = $notes,
+         existingAnswer.gatedBy = null,
          existingAnswer.updated = $now,
          existingAnswer.updatedBy = $assessor
        MERGE (existingAnswer)-[:ANSWERS]->(question)`,
