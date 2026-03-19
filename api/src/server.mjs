@@ -63,7 +63,11 @@ async function bootstrap() {
 
   // Health check (unauthenticated)
   application.get('/api/health', (_request, response) => {
-    response.json({ status: 'ok', timestamp: new Date().toISOString() });
+    response.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      storm: stormService.snapshot()
+    });
   });
 
   // Mount authentication on all /api/* except health
