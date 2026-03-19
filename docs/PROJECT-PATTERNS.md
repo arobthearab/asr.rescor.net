@@ -57,6 +57,9 @@ As of 2026-03-12: **82+ nodes** (Policy nodes added by client overlay; snapshots
 | `DeploymentArchetype`  |     9 | code, label, description, source, environment, sortOrder     | `code`                       |
 | `Policy`               |     — | reference, title, tag, description (seeded by client overlay) | `reference`                  |
 | `CsfSubcategory`       |    12 | code, description                                            | `code`                       |
+| `User`                 |     — | sub (Entra OID), email, username, displayName, roles[], tenantId, active, created, lastLogin | `sub` |
+| `AuthEvent`            |     — | eventId, tenantId, sub, action, timestamp, ipAddress, userAgent, host, outcome, reason, ttl (90-day APOC expiry) | `eventId` |
+| `AuditEvent`           |     — | eventId, tenantId, sub, action, resourceType, resourceId, timestamp, ipAddress, userAgent, meta (JSON) | `eventId` |
 | `Gap`                  |     0 | gapId (future)                                               | `gapId`                      |
 | `SraSection`           |     0 | sectionId (future)                                           | `sectionId`                  |
 
@@ -81,6 +84,8 @@ As of 2026-03-12: **82+ nodes** (Policy nodes added by client overlay; snapshots
 | `(Answer)-[:HAS_REMEDIATION]->(RemediationItem)`      |     — | POAM items per high-RU answer     |
 | `(Review)-[:HAS_PROPOSED_CHANGE]->(ProposedChange)`   |     — | User-proposed answer changes      |
 | `(Review)-[:HAS_AUDITOR_COMMENT]->(AuditorComment)`   |     — | Auditor commentary                |
+| `(User)-[:BELONGS_TO]->(Tenant)`                      |     — | User → tenant membership          |
+| `(User)-[:HAS_AUTH_EVENT]->(AuthEvent)`               |     — | Login trail per user              |
 
 ### Client Overlay Relationships
 
@@ -111,6 +116,12 @@ Beyond constraint-backed indexes, these explicit indexes exist:
 | `draft_tenant_idx`              | QuestionnaireDraft | tenantId               | Per-tenant draft listing   |
 | `gate_tenant_idx`               | GateQuestion | tenantId                     | Per-tenant gate listing    |
 | `compliance_tag_tenant_idx`     | ComplianceTagConfig | tenantId              | Per-tenant chip actions    |
+| `auth_event_tenant_idx`         | AuthEvent    | tenantId                     | Per-tenant event queries   |
+| `auth_event_action_idx`         | AuthEvent    | action                       | Filter by action type      |
+| `auth_event_timestamp_idx`      | AuthEvent    | timestamp                    | Chronological queries      |
+| `audit_event_tenant_idx`        | AuditEvent   | tenantId                     | Per-tenant audit queries   |
+| `audit_event_action_idx`        | AuditEvent   | action                       | Filter by action type      |
+| `audit_event_ts_idx`            | AuditEvent   | timestamp                    | Chronological queries      |
 
 ---
 
@@ -169,7 +180,7 @@ When YAML configuration changes, existing reviews must not be corrupted.
 npm run dev                       # from workspace root
 
 # Seed Neo4j database
-npm run cypher:setup -w api       # runs all cypher files (001–010)
+npm run cypher:setup -w api       # runs all cypher files (001–012)
 
 # Seed with client overlay (e.g., Stride)
 npm run cypher:setup -w api -- --overlay ../asr.k12.com/cypher
@@ -228,6 +239,8 @@ New cypher files must also be added to the `SCRIPTS` array in `api/src/setupData
 | `api/cypher/008-questionnaire-templates` | Questionnaire grouping nodes; VERSION_OF / CURRENT_VERSION / BELONGS_TO migration | Idempotent |
 | `api/cypher/009-tenant-config`         | tenantId indexes on ScoringConfig, QuestionnaireSnapshot, QuestionnaireDraft; stamps existing nodes with `tenantId: 'demo'` | Migration |
 | `api/cypher/010-tenant-gates`          | tenantId indexes on GateQuestion, ComplianceTagConfig; stamps existing nodes with `tenantId: 'demo'` | Migration |
+| `api/cypher/011-audit-events`          | AuditEvent uniqueness constraint + tenantId/action/timestamp indexes | — |
+| `api/cypher/012-apoc-ttl`              | Back-fills `ttl` property on existing AuthEvent nodes (90-day expiry); APOC TTL scheduler configured in docker-compose | Idempotent |
 
 ---
 

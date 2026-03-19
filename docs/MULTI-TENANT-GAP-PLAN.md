@@ -145,7 +145,7 @@ application.use('/api', apiLimiter);         // after cors(), before routes (~li
 
 ---
 
-## Step 3 — Add `tenantId` to `AuthEvent` nodes
+## Step 3 — Add `tenantId` to `AuthEvent` nodes ✅ IMPLEMENTED
 
 **Gap**: `AuthEventStore.logEvent()` (line 17) doesn't receive or store `tenantId`. Admin endpoint
 and active-user counter are unscoped.
@@ -195,7 +195,7 @@ Superadmin (`tenants: ['*']`) can pass `?tenantId=` to query other tenants.
 
 ---
 
-## Step 4 — CORS per-deployment configuration
+## Step 4 — CORS per-deployment configuration ✅ IMPLEMENTED
 
 **Gap**: `application.use(cors())` at server.mjs:31 accepts all origins.
 
@@ -349,7 +349,7 @@ async function loadComplianceTagConfigs(database, tenantId) {
 
 ---
 
-## Step 7 — Data-mutation audit trail (`AuditEvent` nodes)
+## Step 7 — Data-mutation audit trail (`AuditEvent` nodes) ✅ IMPLEMENTED
 
 **Gap**: No logging for review creation, answer changes, role assignments, or publish events.
 
@@ -431,7 +431,7 @@ GET /api/admin/audit-events?action=&resourceId=&since=&until=&limit=&offset=
 
 ---
 
-## Step 8 — Tenant provisioning API
+## Step 8 — Tenant provisioning API ✅ IMPLEMENTED
 
 **Gap**: New tenants get a Tenant node but no isolated config; no lifecycle management.
 
@@ -503,7 +503,7 @@ Emit `'tenant.create'` / `'tenant.delete'` to `AuditEventStore` on each mutation
 
 ---
 
-## Step 9 — APOC TTL for `AuthEvent` retention
+## Step 9 — APOC TTL for `AuthEvent` retention ✅ IMPLEMENTED
 
 **Gap**: Auth events accumulate indefinitely.
 
@@ -534,7 +534,7 @@ environment:
 
 ---
 
-## Step 10 — Production Neo4j hardening
+## Step 10 — Production Neo4j hardening ✅ IMPLEMENTED
 
 ### 10a. TLS — operational, no code change
 
