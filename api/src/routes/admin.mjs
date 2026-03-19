@@ -190,6 +190,41 @@ export function createAdminRouter(database, userStore, authEventStore, auditEven
     response.status(statusCode).json(body);
   });
 
+  // ── Audit events (data-mutation trail) ────────────────────────
+  router.get('/audit-events', async (request, response) => {
+    let statusCode = 200;
+    let body = {};
+
+    if (!auditEventStore) {
+      response.status(503).json({ error: 'Audit event store not available' });
+      return;
+    }
+
+    try {
+      const limit      = Math.min(Math.max(parseInt(request.query.limit, 10) || 50, 1), 200);
+      const offset     = Math.max(parseInt(request.query.offset, 10) || 0, 0);
+      const tenantId   = request.user?.tenantId || null;
+      const action     = request.query.action     || undefined;
+      const resourceId = request.query.resourceId || undefined;
+      const since      = request.query.since      || undefined;
+      const until      = request.query.until      || undefined;
+
+      const filters = { tenantId, action, resourceId, since, until };
+
+      const [events, total] = await Promise.all([
+        auditEventStore.listEvents({ ...filters, limit, offset }),
+        auditEventStore.countEvents(filters),
+      ]);
+
+      body = { events, total };
+    } catch (error) {
+      statusCode = 500;
+      body = { error: error.message };
+    }
+
+    response.status(statusCode).json(body);
+  });
+
   // ── Events within a single session ─────────────────────────────
   router.get('/auth-sessions/events', async (request, response) => {
     let statusCode = 200;

@@ -77,4 +77,30 @@ export class AuditEventStore {
 
     return rows.map((row) => row.event || row);
   }
+
+  /**
+   * Count audit events matching the same filters as listEvents.
+   */
+  async countEvents({ tenantId, action, resourceId, since, until } = {}) {
+    const conditions = [];
+    const params = {};
+
+    if (tenantId)   { conditions.push('event.tenantId = $tenantId');     params.tenantId = tenantId; }
+    if (action)     { conditions.push('event.action = $action');         params.action = action; }
+    if (resourceId) { conditions.push('event.resourceId = $resourceId'); params.resourceId = resourceId; }
+    if (since)      { conditions.push('event.timestamp >= $since');      params.since = since; }
+    if (until)      { conditions.push('event.timestamp <= $until');      params.until = until; }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const rows = await this.database.query(
+      `MATCH (event:AuditEvent)
+       ${whereClause}
+       RETURN count(event) AS total`,
+      params
+    );
+
+    const result = rows[0]?.total ?? 0;
+    return typeof result === 'object' && result.toNumber ? result.toNumber() : Number(result);
+  }
 }
