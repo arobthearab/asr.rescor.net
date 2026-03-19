@@ -5,9 +5,7 @@
 import { Router } from 'express';
 import {
   questionMeasurement,
-  computeScore,
   loadScoringConfiguration,
-  ratingFromNormalized,
 } from '../scoring.mjs';
 import { authorize, requireOwnershipOrAdmin } from '../middleware/authorize.mjs';
 
@@ -15,7 +13,7 @@ import { authorize, requireOwnershipOrAdmin } from '../middleware/authorize.mjs'
 // createAnswersRouter
 // ────────────────────────────────────────────────────────────────────
 
-export function createAnswersRouter(database, auditEventStore = null) {
+export function createAnswersRouter(database, stormService, auditEventStore = null) {
   const router = Router();
 
   // ── Save answers (bulk upsert) ─────────────────────────────────
@@ -35,7 +33,7 @@ export function createAnswersRouter(database, auditEventStore = null) {
         database, reviewId, answers, weightTierMap, classificationFactor, assessor, now
       );
 
-      const overall = computeScore(measurements, scoringConfiguration);
+      const overall = await stormService.computeScore(measurements, scoringConfiguration);
 
       await updateReviewScore(
         database, reviewId, classificationFactor, overall, assessor, now

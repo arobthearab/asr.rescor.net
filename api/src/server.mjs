@@ -15,6 +15,7 @@ import { createRemediationRouter } from './routes/remediation.mjs';
 import { createQuestionnaireAdminRouter } from './routes/questionnaireAdmin.mjs';
 import { createGateRouter } from './routes/gates.mjs';
 import { createExportRouter } from './routes/exportDocuments.mjs';
+import { StormService } from './StormService.mjs';
 import { createAuthenticationMiddleware } from './middleware/authenticate.mjs';
 import { authorize } from './middleware/authorize.mjs';
 import { authLimiter, apiLimiter } from './middleware/rateLimiter.mjs';
@@ -46,6 +47,8 @@ async function bootstrap() {
   const userStore = new UserStore(database);
   const authEventStore = new AuthEventStore(database);
   const auditEventStore = new AuditEventStore(database);
+
+  const stormService = await StormService.create({ configuration });
 
   // Auth config from Infisical (optional — absent in dev = auth-optional)
   const tenantId = await configuration.getConfig('entra', 'tenantId') || null;
@@ -80,14 +83,14 @@ async function bootstrap() {
   // Mount routes — config is public (read), reviews + answers gated
   application.use('/api/config', createConfigRouter(database));
   application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createReviewsRouter(database, auditEventStore));
-  application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createAnswersRouter(database, auditEventStore));
+  application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createAnswersRouter(database, stormService, auditEventStore));
   application.use('/api/reviews', authorize('admin', 'reviewer', 'user'), createProposedChangesRouter(database));
   application.use('/api/reviews', authorize('admin', 'auditor'), createAuditorCommentsRouter(database));
   application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createRemediationRouter(database));
   application.use('/api/admin', authorize('admin'), createAdminRouter(database, userStore, authEventStore, auditEventStore));
   application.use('/api/admin/questionnaire', authorize('admin'), createQuestionnaireAdminRouter(database, auditEventStore));
-  application.use('/api', createGateRouter(database));
-  application.use('/api', createExportRouter(database));
+  application.use('/api', createGateRouter(database, stormService));
+  application.use('/api', createExportRouter(database, stormService));
 
   application.listen(PORT, () => {
     console.log(`ASR API listening on port ${PORT}`);

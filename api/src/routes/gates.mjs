@@ -5,9 +5,7 @@
 import { Router } from 'express';
 import {
   questionMeasurement,
-  computeScore,
   loadScoringConfiguration,
-  ratingFromNormalized,
 } from '../scoring.mjs';
 import { authorize, requireOwnershipOrAdmin } from '../middleware/authorize.mjs';
 import { verifyReviewTenant } from '../persistence/ReviewStore.mjs';
@@ -16,7 +14,7 @@ import { verifyReviewTenant } from '../persistence/ReviewStore.mjs';
 // createGateRouter
 // ────────────────────────────────────────────────────────────────────
 
-export function createGateRouter(database) {
+export function createGateRouter(database, stormService) {
   const router = Router();
 
   // ── GET /gates — list active gate questions (config-level) ────
@@ -207,7 +205,7 @@ export function createGateRouter(database) {
         const preFilled = await applyPreFillRules(database, reviewId, gateId, rules, respondedBy, now);
 
         // ── Recompute review score ──────────────────────────────
-        await recomputeReviewScore(database, reviewId, request.user?.tenantId);
+        await recomputeReviewScore(database, reviewId, request.user?.tenantId, stormService);
 
         body = {
           gateId,
@@ -248,7 +246,7 @@ export function createGateRouter(database) {
         );
 
         // Recompute review score
-        await recomputeReviewScore(database, reviewId, request.user?.tenantId);
+        await recomputeReviewScore(database, reviewId, request.user?.tenantId, stormService);
 
         body = {
           gateId,
@@ -384,7 +382,7 @@ async function clearGateAnswers(database, reviewId, gateId) {
 
 // ── recomputeReviewScore — recalc from all current answers
 
-async function recomputeReviewScore(database, reviewId, tenantId) {
+async function recomputeReviewScore(database, reviewId, tenantId, stormService) {
   const scoringConfiguration = await loadScoringConfiguration(database, tenantId);
 
   const answersResult = await database.query(
@@ -395,7 +393,7 @@ async function recomputeReviewScore(database, reviewId, tenantId) {
   );
 
   const measurements = answersResult.map((record) => record.measurement ?? 0);
-  const overall = computeScore(measurements, scoringConfiguration);
+  const overall = await stormService.computeScore(measurements, scoringConfiguration);
 
   const reviewResult = await database.query(
     `MATCH (review:Review {reviewId: $reviewId})

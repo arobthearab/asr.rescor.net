@@ -10,10 +10,7 @@ import {
   TableOfContents, PageBreak,
 } from 'docx';
 import ExcelJS from 'exceljs';
-import {
-  loadScoringConfiguration, rskAggregate, rskNormalize, ratingFromNormalized,
-  questionMeasurement, computeScore,
-} from '../scoring.mjs';
+import { loadScoringConfiguration } from '../scoring.mjs';
 import { authorize } from '../middleware/authorize.mjs';
 
 // ── Brand Constants ──────────────────────────────────────────────────
@@ -48,7 +45,7 @@ function allBorders(border = THIN_BORDER) {
 // createExportRouter
 // ════════════════════════════════════════════════════════════════════
 
-export function createExportRouter(database) {
+export function createExportRouter(database, stormService) {
   const router = Router();
 
   // ────────────────────────────────────────────────────────────────
@@ -116,7 +113,7 @@ export function createExportRouter(database) {
           return;
         }
         const config = await loadFullConfig(database);
-        const document = buildReviewReportDocx(reviewData, config);
+        const document = await buildReviewReportDocx(reviewData, config, stormService);
         const buffer = await Packer.toBuffer(document);
 
         const safeName = (reviewData.review.applicationName || 'Review')
@@ -920,7 +917,7 @@ function addRatingConditionalFormatting(sheet, startRow, endRow, column) {
 // 4c. Review Report DOCX Builder
 // ════════════════════════════════════════════════════════════════════
 
-function buildReviewReportDocx(reviewData, config) {
+async function buildReviewReportDocx(reviewData, config, stormService) {
   const { review, answers, remediations, gates } = reviewData;
   const { scoringConfiguration, domains } = config;
   const children = [];
@@ -1037,7 +1034,7 @@ function buildReviewReportDocx(reviewData, config) {
       }
     }
 
-    const domainScore = computeScore(domainMeasurements, scoringConfiguration);
+    const domainScore = await stormService.computeScore(domainMeasurements, scoringConfiguration);
 
     domainSummaryRows.push(new TableRow({
       children: [
