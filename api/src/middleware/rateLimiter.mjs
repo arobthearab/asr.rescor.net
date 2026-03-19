@@ -5,7 +5,7 @@
 // apiLimiter   — per-tenant ceiling for all other API endpoints
 // ════════════════════════════════════════════════════════════════════
 
-import { rateLimit } from 'express-rate-limit';
+import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 
 // ── Auth endpoints — 20 requests per 15 minutes per IP ────────────
 // Applied to /api/auth/* before the authenticate middleware so that
@@ -26,7 +26,7 @@ export const authLimiter = rateLimit({
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 300,
-  keyGenerator: (request) => request.user?.tenantId || request.ip,
+  keyGenerator: (request) => request.user?.tenantId || ipKeyGenerator(request),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Rate limit exceeded, please slow down.' },
