@@ -28,7 +28,8 @@ export class AuthEventStore {
          userAgent: $userAgent,
          host:      $host,
          outcome:   $outcome,
-         reason:    $reason
+         reason:    $reason,
+         ttl:       datetime($timestamp) + duration({days: 90})
        })
        WITH event
        OPTIONAL MATCH (user:User {sub: $sub})

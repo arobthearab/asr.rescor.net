@@ -10,9 +10,15 @@ services:
       - "17687:7687"   # Bolt protocol
     environment:
       NEO4J_AUTH: neo4j/asrdev123
-      NEO4J_PLUGINS: '[]'
+      NEO4J_PLUGINS: '["apoc"]'
       NEO4J_server_memory_heap_initial__size: 256m
       NEO4J_server_memory_heap_max__size: 512m
+      # APOC TTL — purge expired AuthEvent nodes (Step 9)
+      NEO4J_apoc_ttl_enabled: "true"
+      NEO4J_apoc_ttl_schedule: "3600"
+      NEO4J_apoc_ttl_limit: "1000"
+      # APOC procedure whitelist (Step 10)
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.ttl.*"
     volumes:
       - asr-neo4j-data:/data
     healthcheck:
