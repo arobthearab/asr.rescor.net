@@ -22,6 +22,7 @@ import { authLimiter, apiLimiter } from './middleware/rateLimiter.mjs';
 import { UserStore } from './persistence/UserStore.mjs';
 import { AuthEventStore } from './persistence/AuthEventStore.mjs';
 import { AuditEventStore } from './persistence/AuditEventStore.mjs';
+import { TenantStore } from './persistence/TenantStore.mjs';
 
 const PORT = 3100;
 
@@ -47,6 +48,7 @@ async function bootstrap() {
   const userStore = new UserStore(database);
   const authEventStore = new AuthEventStore(database);
   const auditEventStore = new AuditEventStore(database);
+  const tenantStore = new TenantStore(database);
 
   const stormService = await StormService.create({ configuration });
 
@@ -87,7 +89,7 @@ async function bootstrap() {
   application.use('/api/reviews', authorize('admin', 'reviewer', 'user'), createProposedChangesRouter(database));
   application.use('/api/reviews', authorize('admin', 'auditor'), createAuditorCommentsRouter(database));
   application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createRemediationRouter(database));
-  application.use('/api/admin', authorize('admin'), createAdminRouter(database, userStore, authEventStore, auditEventStore));
+  application.use('/api/admin', authorize('admin'), createAdminRouter(database, userStore, authEventStore, auditEventStore, tenantStore));
   application.use('/api/admin/questionnaire', authorize('admin'), createQuestionnaireAdminRouter(database, auditEventStore));
   application.use('/api', createGateRouter(database, stormService));
   application.use('/api', createExportRouter(database, stormService));

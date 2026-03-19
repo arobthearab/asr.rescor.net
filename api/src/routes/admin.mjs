@@ -8,7 +8,7 @@ import { Router } from 'express';
 // createAdminRouter
 // ────────────────────────────────────────────────────────────────────
 
-export function createAdminRouter(database, userStore, authEventStore, auditEventStore = null) {
+export function createAdminRouter(database, userStore, authEventStore, auditEventStore = null, tenantStore = null) {
   const router = Router();
 
   // ── List all users ─────────────────────────────────────────────
@@ -237,6 +237,93 @@ export function createAdminRouter(database, userStore, authEventStore, auditEven
         return;
       }
       body = await authEventStore.listSessionEvents({ sub: sub || null, from, to });
+    } catch (error) {
+      statusCode = 500;
+      body = { error: error.message };
+    }
+
+    response.status(statusCode).json(body);
+  });
+
+  // ── Tenant management ──────────────────────────────────────────
+
+  // GET /tenants — list all tenants with user counts
+  router.get('/tenants', async (_request, response) => {
+    let statusCode = 200;
+    let body = [];
+
+    try {
+      body = await tenantStore.listTenants();
+    } catch (error) {
+      statusCode = 500;
+      body = { error: error.message };
+    }
+
+    response.status(statusCode).json(body);
+  });
+
+  // POST /tenants — provision a new tenant
+  router.post('/tenants', async (request, response) => {
+    let statusCode = 201;
+    let body = null;
+
+    try {
+      const { tenantId, name, domain } = request.body;
+
+      if (!tenantId || typeof tenantId !== 'string' || !name || typeof name !== 'string') {
+        statusCode = 400;
+        body = { error: 'tenantId and name are required' };
+      } else {
+        await tenantStore.createTenant({ tenantId: tenantId.trim(), name: name.trim(), domain: domain?.trim() || null });
+        body = { tenantId: tenantId.trim(), name: name.trim(), domain: domain?.trim() || null, active: true };
+
+        if (auditEventStore) {
+          auditEventStore.logEvent({
+            tenantId:     request.user?.tenantId || null,
+            sub:          request.user?.sub,
+            action:       'tenant.create',
+            resourceType: 'Tenant',
+            resourceId:   tenantId.trim(),
+            ipAddress:    request.headers['x-forwarded-for']?.split(',')[0]?.trim() || request.ip || null,
+            userAgent:    request.headers['user-agent'] || null,
+            meta:         { name: name.trim(), domain: domain?.trim() || null },
+          });
+        }
+      }
+    } catch (error) {
+      statusCode = 500;
+      body = { error: error.message };
+    }
+
+    response.status(statusCode).json(body);
+  });
+
+  // DELETE /tenants/:tenantId — soft-delete tenant
+  router.delete('/tenants/:tenantId', async (request, response) => {
+    let statusCode = 200;
+    let body = null;
+
+    try {
+      const result = await tenantStore.deactivateTenant(request.params.tenantId);
+
+      if (!result) {
+        statusCode = 404;
+        body = { error: 'Tenant not found' };
+      } else {
+        body = { tenantId: request.params.tenantId, active: false };
+
+        if (auditEventStore) {
+          auditEventStore.logEvent({
+            tenantId:     request.user?.tenantId || null,
+            sub:          request.user?.sub,
+            action:       'tenant.delete',
+            resourceType: 'Tenant',
+            resourceId:   request.params.tenantId,
+            ipAddress:    request.headers['x-forwarded-for']?.split(',')[0]?.trim() || request.ip || null,
+            userAgent:    request.headers['user-agent'] || null,
+          });
+        }
+      }
     } catch (error) {
       statusCode = 500;
       body = { error: error.message };
