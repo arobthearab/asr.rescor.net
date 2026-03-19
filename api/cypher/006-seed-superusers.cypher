@@ -16,3 +16,8 @@ MERGE (u:User {email: 'atr@atra.us'})
   ON MATCH SET
     u.roles     = '["admin"]',
     u.lastSeen  = datetime();
+
+// Link superuser to demo tenant (dev environment)
+MATCH (u:User {email: 'atr@atra.us'})
+MATCH (t:Tenant {tenantId: 'demo'})
+MERGE (u)-[:BELONGS_TO]->(t);

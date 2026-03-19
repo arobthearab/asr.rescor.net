@@ -4,6 +4,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { resolve } from 'path';
+import { createHash, randomUUID } from 'node:crypto';
 import { createConfiguration, createDatabase } from './database.mjs';
 
 const CYPHER_DIRECTORY = resolve(import.meta.dirname, '..', 'cypher');
@@ -20,6 +21,7 @@ const SCRIPTS = [
   '008-questionnaire-templates.cypher',
   '009-tenant-config.cypher',
   '010-tenant-gates.cypher',
+  '011-audit-events.cypher',
 ];
 
 // ────────────────────────────────────────────────────────────────────
@@ -30,7 +32,7 @@ function parseCypherStatements(raw) {
   const blocks = raw
     .split(/\n\n+/)
     .map((block) => block.trim())
-    .filter((block) => block.length > 0 && !block.startsWith('//'));
+    .filter((block) => block.length > 0);
 
   const statements = [];
   for (const block of blocks) {
@@ -102,6 +104,102 @@ function discoverOverlayScripts() {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// bootstrapQuestionnaire — create initial Questionnaire + snapshot
+// if none exist yet.  Reads the live Question/Domain nodes and
+// packages them into a Questionnaire wrapper so review creation works.
+// ────────────────────────────────────────────────────────────────────
+
+async function bootstrapQuestionnaire(database) {
+  const existing = await database.query(
+    `MATCH (q:Questionnaire) RETURN count(q) AS total`
+  );
+  const questionnaireCount = existing[0]?.total?.toNumber?.() ?? Number(existing[0]?.total ?? 0);
+
+  if (questionnaireCount > 0) {
+    console.log('  (questionnaire already exists — skipping bootstrap)');
+    return;
+  }
+
+  // Check for live questions
+  const questionCount = await database.query(
+    `MATCH (q:Question) WHERE q.active <> false RETURN count(q) AS total`
+  );
+  const totalQuestions = questionCount[0]?.total?.toNumber?.() ?? Number(questionCount[0]?.total ?? 0);
+
+  if (totalQuestions === 0) {
+    console.log('  (no questions in database — skipping questionnaire bootstrap)');
+    return;
+  }
+
+  console.log(`Bootstrapping default Questionnaire from ${totalQuestions} live questions...`);
+
+  // Read domains + questions
+  const domainsResult = await database.query(
+    `MATCH (domain:Domain)
+     WHERE domain.active <> false
+     OPTIONAL MATCH (domain)<-[:BELONGS_TO]-(question:Question)
+     WHERE question.active <> false
+     RETURN domain, collect(question) AS questions
+     ORDER BY domain.domainIndex`
+  );
+
+  const domains = domainsResult.map((record) => {
+    const domain = record.domain || {};
+    const questions = (record.questions || [])
+      .sort((a, b) => (a.questionIndex ?? 0) - (b.questionIndex ?? 0))
+      .map((question) => ({
+        text: question.text,
+        weightTier: question.weightTier,
+        choices: question.choices || [],
+        choiceScores: question.choiceScores || [],
+        naScore: question.naScore ?? 1,
+        applicability: question.applicability || [],
+        guidance: question.guidance || null,
+        responsibleFunction: question.responsibleFunction || null,
+      }));
+
+    return {
+      name: domain.name,
+      policyRefs: domain.policyRefs || [],
+      csfRefs: domain.csfRefs || [],
+      questions,
+    };
+  });
+
+  const snapshotData = { domains };
+  const snapshotJson = JSON.stringify(snapshotData);
+  const version = createHash('sha256').update(snapshotJson).digest('hex').slice(0, 12);
+  const questionnaireId = randomUUID();
+  const label = 'ASR Questionnaire';
+  const now = new Date().toISOString();
+
+  // Create Questionnaire + Snapshot + wire them
+  await database.query(
+    `CREATE (q:Questionnaire {
+       questionnaireId: $questionnaireId,
+       name:            $label,
+       description:     'Default ASR questionnaire (auto-bootstrapped)',
+       active:          true,
+       createdBy:       'setup',
+       created:         $now,
+       updated:         $now
+     })
+     CREATE (s:QuestionnaireSnapshot {
+       version:  $version,
+       label:    $label,
+       data:     $data,
+       tenantId: 'demo',
+       created:  datetime()
+     })
+     CREATE (q)-[:CURRENT_VERSION]->(s)
+     CREATE (s)-[:VERSION_OF]->(q)`,
+    { questionnaireId, label, version, data: snapshotJson, now }
+  );
+
+  console.log(`  ✓ Questionnaire "${label}" created (version: ${version})`);
+}
+
+// ────────────────────────────────────────────────────────────────────
 // runSetup — execute each Cypher script in order
 // ────────────────────────────────────────────────────────────────────
 
@@ -123,6 +221,9 @@ async function runSetup() {
       await runCypherFile(database, filePath, `overlay/${fileName}`);
     }
   }
+
+  // Bootstrap default Questionnaire if none exists
+  await bootstrapQuestionnaire(database);
 
   await database.disconnect();
   console.log('Database setup complete.');

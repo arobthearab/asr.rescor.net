@@ -15,14 +15,14 @@
 
 // ── LEGAL_FERPA ─────────────────────────────────────────────────
 // "No FERPA" → pre-fill FERPA questions as N/A (-1)
-// "Directory only" → pre-fill restrictive FERPA Qs as N/A, leave D2Q0 manual
+// "Directory only" → pre-fill FERPA Qs 8-11 as N/A, leave D2Q0 manual
 // "Internal-use" / "High-sensitivity" → no pre-fill (manual review)
 
 MERGE (gq:GateQuestion {gateId: 'LEGAL_FERPA'})
 SET gq.function    = 'LEGAL',
     gq.text        = 'What level of FERPA data is this application approved to handle?',
     gq.choices     = ['No FERPA data', 'Directory information only', 'Internal-use education records', 'High-sensitivity education records'],
-    gq.prefillRules = '{"0":[{"domainIndex":2,"questionIndex":0,"choiceIndex":-1},{"domainIndex":2,"questionIndex":7,"choiceIndex":-1},{"domainIndex":2,"questionIndex":8,"choiceIndex":-1},{"domainIndex":2,"questionIndex":9,"choiceIndex":-1},{"domainIndex":2,"questionIndex":10,"choiceIndex":-1},{"domainIndex":2,"questionIndex":11,"choiceIndex":-1}],"1":[{"domainIndex":2,"questionIndex":9,"choiceIndex":-1},{"domainIndex":2,"questionIndex":10,"choiceIndex":-1},{"domainIndex":2,"questionIndex":11,"choiceIndex":-1}],"2":[],"3":[]}',
+    gq.prefillRules = '{"0":[{"domainIndex":2,"questionIndex":0,"choiceIndex":-1},{"domainIndex":2,"questionIndex":7,"choiceIndex":-1},{"domainIndex":2,"questionIndex":8,"choiceIndex":-1},{"domainIndex":2,"questionIndex":9,"choiceIndex":-1},{"domainIndex":2,"questionIndex":10,"choiceIndex":-1},{"domainIndex":2,"questionIndex":11,"choiceIndex":-1}],"1":[{"domainIndex":2,"questionIndex":8,"choiceIndex":-1},{"domainIndex":2,"questionIndex":9,"choiceIndex":-1},{"domainIndex":2,"questionIndex":10,"choiceIndex":-1},{"domainIndex":2,"questionIndex":11,"choiceIndex":-1}],"2":[],"3":[]}',
     gq.sortOrder   = 1,
     gq.active      = true,
     gq.updated     = datetime();
@@ -41,14 +41,15 @@ SET gq.function    = 'SEPG',
     gq.updated     = datetime();
 
 // ── EA_TECH_STACK ───────────────────────────────────────────────
-// "Approved with controls" → pre-fill EA governance Qs as best-case
-// "Approved limited/pilot" / "Under review" → no pre-fill
+// "Approved with controls" → pre-fill EA governance Qs as best-case + Q0.10
+// "Approved limited/pilot" → pre-fill Q0.10 choice 1
+// "Under review" → pre-fill Q0.10 choice 2
 
 MERGE (gq:GateQuestion {gateId: 'EA_TECH_STACK'})
 SET gq.function    = 'EA',
     gq.text        = 'Has Enterprise Architecture (EA) approved the technology stack for this application?',
     gq.choices     = ['Approved with controls', 'Approved limited/pilot', 'Under review'],
-    gq.prefillRules = '{"0":[{"domainIndex":6,"questionIndex":0,"choiceIndex":0},{"domainIndex":6,"questionIndex":4,"choiceIndex":0}],"1":[],"2":[]}',
+    gq.prefillRules = '{"0":[{"domainIndex":6,"questionIndex":0,"choiceIndex":0},{"domainIndex":6,"questionIndex":4,"choiceIndex":0},{"domainIndex":0,"questionIndex":10,"choiceIndex":0}],"1":[{"domainIndex":0,"questionIndex":10,"choiceIndex":1}],"2":[{"domainIndex":0,"questionIndex":10,"choiceIndex":2}]}',
     gq.sortOrder   = 3,
     gq.active      = true,
     gq.updated     = datetime();
