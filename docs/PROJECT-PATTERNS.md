@@ -40,7 +40,7 @@ As of 2026-03-12: **82+ nodes** (Policy nodes added by client overlay; snapshots
 | `Question`             |    82 | domainIndex, questionIndex, text, weightTier, choices[], choiceScores[], naScore, applicability[] | composite `(domainIndex, questionIndex)` |
 | `Review`               |     — | reviewId (UUID), applicationName, assessor, status, classificationChoice, classificationFactor, sourceChoice, environmentChoice, deploymentArchetype, questionnaireVersion, rskRaw, rskNormalized, rating, notes, active, created/updated/createdBy/updatedBy | `reviewId` |
 | `Answer`               |     — | domainIndex, questionIndex, choiceText, rawScore, weightTier, measurement, notes, created/updated | composite index `(domainIndex, questionIndex)` |
-| `Tenant`               |     2 | tenantId (`demo`, `k12.com`), name, domain, active           | `tenantId`                   |
+| `Tenant`               |     2 | tenantId (`demo`, `client-a.example.com`), name, domain, active | `tenantId`                |
 | `QuestionnaireSnapshot`|     — | version (12-char SHA), label, tenantId, data (JSON blob), created | `version`               |
 | `QuestionnaireDraft`   |     — | draftId (UUID), label, tenantId, status, data (JSON), createdBy, created, updated | `draftId`       |
 | `Questionnaire`        |     — | questionnaireId (UUID), name, description, active, createdBy | `questionnaireId`            |
@@ -182,8 +182,8 @@ npm run dev                       # from workspace root
 # Seed Neo4j database
 npm run cypher:setup -w api       # runs all cypher files (001–012)
 
-# Seed with client overlay (e.g., Stride)
-npm run cypher:setup -w api -- --overlay ../asr.k12.com/cypher
+# Seed with client overlay (from client repo)
+npm run cypher:setup -w api -- --overlay ../asr.client-a/cypher
 
 # Start API only
 npm run dev -w api               # node --watch api/src/server.mjs
@@ -233,7 +233,7 @@ New cypher files must also be added to the `SCRIPTS` array in `api/src/setupData
 | `api/cypher/003-seed-policies-csf`     | 12 CsfSubcategories, ALIGNS_TO edges                       | Policies added by client overlay        |
 | `api/cypher/004-auth-constraints`      | AuthEvent uniqueness constraint + timestamp/action indexes | —                                       |
 | `api/cypher/004-seed-gates`            | GateQuestion nodes + APPLIES_TO questionnaire links        | Numbering collision — both 004s run     |
-| `api/cypher/005-seed-tenants`          | Tenant nodes: `demo` + `k12.com`                           | MERGE — idempotent                      |
+| `api/cypher/005-seed-tenants`          | Tenant nodes: `demo` + RESCOR                              | Client tenants via overlay               |
 | `api/cypher/006-seed-superusers`       | Superadmin user node(s)                                    | —                                       |
 | `api/cypher/007-auth-events`           | AuthEvent constraint + indexes                             | —                                       |
 | `api/cypher/008-questionnaire-templates` | Questionnaire grouping nodes; VERSION_OF / CURRENT_VERSION / BELONGS_TO migration | Idempotent |

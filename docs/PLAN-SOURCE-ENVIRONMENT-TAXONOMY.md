@@ -9,7 +9,7 @@ Replaced the single 4-choice deployment question with a two-axis taxonomy:
 
 ## Implementation
 
-### Phase 1: YAML Schema (asr.k12.com)
+### Phase 1: YAML Schema (asr.client-a)
 
 - Replaced `deployment_archetypes` (4 entries) with 9 compound archetypes
 - Replaced `deployment_question` with `source_question` + `environment_question`

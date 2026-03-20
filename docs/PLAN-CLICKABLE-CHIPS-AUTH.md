@@ -78,7 +78,7 @@ or add entirely new tag types — all in their overlay, zero code changes.
    `api/cypher/001-constraints.cypher`.
 4. Add `description` property to all 12 `CsfSubcategory` MERGE statements in
    `api/cypher/003-seed-policies-csf.cypher` (official NIST CSF 2.0 text).
-5. In client overlay `asr.k12.com/cypher/010-stride-policies.cypher`:
+5. In client overlay `asr.client-a/cypher/010-client-policies.cypher`:
    - Add `url` property to each of the 21 Policy nodes (derived from
      SharePoint base URL + `{reference} - {title}.pdf`; marked TODO for user
      to verify actual filenames).
@@ -109,7 +109,7 @@ or add entirely new tag types — all in their overlay, zero code changes.
 
 - `api/cypher/001-constraints.cypher`
 - `api/cypher/003-seed-policies-csf.cypher`
-- `asr.k12.com/cypher/010-stride-policies.cypher` (client overlay)
+- `asr.client-a/cypher/010-client-policies.cypher` (client overlay)
 - `api/src/routes/config.mjs`
 
 ---

@@ -3,7 +3,7 @@
 // ════════════════════════════════════════════════════════════════════
 // Creates CsfSubcategory nodes and links to Domains.
 // Policy nodes are client-specific — seed them via client overlay
-// (e.g., asr.k12.com/cypher/010-stride-policies.cypher).
+// (e.g., asr.client-a/cypher/010-client-policies.cypher).
 // MERGE ensures idempotency.
 // ════════════════════════════════════════════════════════════════════
 

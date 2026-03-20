@@ -208,7 +208,7 @@ Historical YAML files may not be available in git if they were overwritten
 in-place. Options:
 
 1. **Git history**: `git log --follow build/asr_questions.yaml` in the
-   `asr.k12.com` repo can recover prior versions. Extract each, run the
+   `asr.client-a` repo can recover prior versions. Extract each, run the
    pipeline to generate snapshots.
 2. **Manual snapshot**: If only one prior version exists, extract it from git
    and run `npm run cypher:configure` against it.
@@ -236,7 +236,7 @@ in-place. Options:
 | `api/cypher/001-constraints.cypher` | 1 | Add QuestionnaireSnapshot constraint |
 | `api/src/configureFromYaml.mjs` | 1 | Build + store snapshot JSON |
 | `api/src/routes/config.mjs` | 1 | `?version=` param + `/versions` endpoint |
-| `asr.k12.com/build/asr_questions.yaml` | 1 | Add `questionnaire_label` field |
+| `asr.client-a/build/asr_questions.yaml` | 1 | Add `questionnaire_label` field |
 | `frontend/src/lib/types.ts` | 2 | `QuestionnaireVersion` interface |
 | `frontend/src/lib/apiClient.ts` | 2 | Version-aware fetch methods |
 | `frontend/src/pages/ReviewPage.tsx` | 2 | Version-aware config loading |

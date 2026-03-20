@@ -8,7 +8,7 @@
 //
 // Usage:
 //   node --env-file=../.env src/configureFromYaml.mjs \
-//     ../asr.k12.com/build/asr_questions.yaml
+//     ../asr.client-a/build/asr_questions.yaml
 //
 // Prerequisites: run `npm run cypher:setup -w api` first to seed
 // scaffolding (ScoringConfig, WeightTier, ScoreScale, constraints).

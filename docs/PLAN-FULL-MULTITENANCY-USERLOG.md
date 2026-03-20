@@ -21,7 +21,7 @@ What exists today:
 
 | Layer | Status |
 |-------|--------|
-| **Tenant nodes** | ✅ Two Tenants seeded (RESCOR LLC, Stride/k12.com) |
+| **Tenant nodes** | ✅ Two Tenants seeded (RESCOR LLC, Acme Corp) |
 | **User→Tenant** | ✅ `BELONGS_TO` relationship via `tid` claim |
 | **Review→Tenant** | ✅ `SCOPED_TO` relationship + admin vs. tenant-filtered GET |
 | **Questionnaire** | ❌ Global — all tenants share one questionnaire + scoring config |

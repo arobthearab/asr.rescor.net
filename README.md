@@ -23,8 +23,8 @@ npm install
 # 3. Seed Neo4j database (generic defaults)
 npm run cypher:setup -w api
 
-# 3a. Or seed with client-specific overlay (e.g., Stride/k12.com)
-ASR_OVERLAY_CYPHER_DIR=../asr.k12.com/cypher npm run cypher:setup -w api
+# 3a. Or seed with client-specific overlay (from client repo)
+ASR_OVERLAY_CYPHER_DIR=../asr.client-a/cypher npm run cypher:setup -w api
 
 # 4. Start dev servers
 npm run dev

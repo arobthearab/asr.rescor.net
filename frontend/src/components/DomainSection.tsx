@@ -201,7 +201,7 @@ function buildComplianceRefs(domain: DomainConfig): ComplianceRef[] {
     }
   }
 
-  // Stride policies (ISP / IISP)
+  // Client-specific policies (ISP / IISP)
   for (const code of domain.policyRefs ?? []) {
     const tag = code.startsWith('IISP') ? 'IISP' : 'ISP';
     refs.push({ tag, code });

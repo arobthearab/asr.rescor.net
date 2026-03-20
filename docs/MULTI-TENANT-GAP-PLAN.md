@@ -202,7 +202,7 @@ Superadmin (`tenants: ['*']`) can pass `?tenantId=` to query other tenants.
 ### `api/src/server.mjs`
 
 ```js
-const rawOrigins = config.CORS_ALLOWED_ORIGINS; // "https://asr.rescor.net,https://asr.k12.com"
+const rawOrigins = config.CORS_ALLOWED_ORIGINS; // "https://asr.rescor.net,https://asr.client-a.example.com"
 const corsOptions = rawOrigins
   ? { origin: rawOrigins.split(',').map(s => s.trim()) }
   : {};  // dev: allow all (preserved current behaviour)

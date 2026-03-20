@@ -10,7 +10,7 @@ review isolation to the ASR application.
 - Only authorized people can change an ASR
 - Only authorized people can view an ASR
 - Distinction between reviewer, user, and auditor
-- ASRs created under a tenant (e.g., k12.com) are invisible to anyone outside that tenant
+- ASRs created under a tenant (e.g., client-a.example.com) are invisible to anyone outside that tenant
 - A user associated with all tenants is effectively a superuser
 
 ## Roles
@@ -75,7 +75,7 @@ CREATE INDEX tenant_domain_idx FOR (t:Tenant) ON (t.domain);
 1. Create `api/src/middleware/authorize.mjs` — `authorize(...requiredRoles)` middleware
 2. Create `api/src/persistence/UserStore.mjs` — `ensureUser(claims)` MERGE pattern
 3. Create `api/cypher/004-auth-constraints.cypher` — Tenant, User, ProposedChange, AuditorComment
-4. Create `api/cypher/005-seed-tenants.cypher` — seed k12 + rescor tenants
+4. Create `api/cypher/005-seed-tenants.cypher` — seed client-a  rescor tenants
 5. Update `authenticate.mjs` — call `ensureUser()` after JWT validation, extract `tid` claim
 6. Update `server.mjs` — wire `authorize()` per route group
 7. Update `GET /api/reviews` — tenant filter via `SCOPED_TO`
@@ -121,7 +121,7 @@ DashboardPage.tsx (MODIFY), ReviewPage.tsx (MODIFY)
 
 ### Phase 5 — Multi-Tenant Entra ID
 
-*Allow k12.com accounts to sign in alongside RESCOR.*
+*Allow client-a.example.com accounts to sign in alongside RESCOR.*
 
 1. Change app registration to multi-tenant in Entra portal
 2. Update authConfig.ts authority → `/organizations`
@@ -151,4 +151,4 @@ DashboardPage.tsx (MODIFY), ReviewPage.tsx (MODIFY)
 2. **Phase 2**: User proposes change → reviewer accepts → answer updated.
 3. **Phase 3**: Auditor POSTs comment → 200; reviewer → 403.
 4. **Phase 4**: Login as each role → UI adapts.
-5. **Phase 5**: k12.com login → sees only k12 reviews.
+5. **Phase 5**: client-a.example.com login → sees only client reviews.
