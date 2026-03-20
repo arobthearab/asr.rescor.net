@@ -1,8 +1,13 @@
 // ════════════════════════════════════════════════════════════════════
-// Authentication Middleware — Entra ID JWT validation
+// Authentication Middleware — Entra ID JWT + Service Account API keys
 // ════════════════════════════════════════════════════════════════════
 // Production: validates bearer token via Entra ID JWKS.  Rejects
 // unauthenticated requests with 401.
+//
+// Service accounts: tokens prefixed with `sa_` are validated against
+// ServiceAccountStore (SHA-256 hash lookup) instead of Entra ID JWKS.
+// This enables machine-to-machine calls from external services (e.g.
+// cc-api) without requiring an Entra ID client credential flow.
 //
 // Development (isDevelopment=true): auth-optional.  If a bearer token
 // is present it is validated through the real JWKS path; if absent,
@@ -11,6 +16,9 @@
 // ════════════════════════════════════════════════════════════════════
 
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createHash } from 'node:crypto';
+
+const SERVICE_ACCOUNT_KEY_PREFIX = 'sa_';
 
 // ────────────────────────────────────────────────────────────────────
 // Localhost detection — dev bypass only when accessed directly
@@ -45,8 +53,9 @@ function extractRequestMetadata(request) {
  * @param {UserStore}  [options.userStore]     — optional UserStore for auto-registration
  * @param {string[]}   [options.allowedTenants] — whitelist of allowed tenant IDs (empty = all)
  * @param {AuthEventStore} [options.authEventStore] — optional AuthEventStore for activity logging
+ * @param {ServiceAccountStore} [options.serviceAccountStore] — optional store for API key auth
  */
-export function createAuthenticationMiddleware({ isDevelopment = false, tenantId, clientId, userStore = null, allowedTenants = [], authEventStore = null }) {
+export function createAuthenticationMiddleware({ isDevelopment = false, tenantId, clientId, userStore = null, allowedTenants = [], authEventStore = null, serviceAccountStore = null }) {
   const developmentUser = Object.freeze({
     sub: 'dev-user-0000',
     preferred_username: 'developer',
@@ -105,7 +114,42 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
       return;
     }
 
-    // ── Token present — validate via Entra ID JWKS ────────────────
+    // ── Service account API key (sa_ prefix) ────────────────────────
+    const token = authorizationHeader.split(' ')[1];
+
+    if (serviceAccountStore && token.startsWith(SERVICE_ACCOUNT_KEY_PREFIX)) {
+      try {
+        const apiKeyHash = createHash('sha256').update(token).digest('hex');
+        const account = await serviceAccountStore.findByApiKeyHash(apiKeyHash);
+
+        if (!account) {
+          logAuthEvent('anonymous', 'login_failed', 'failure', request, 'invalid-service-account-key');
+          response.status(401).json({ error: 'Invalid API key' });
+          return;
+        }
+
+        request.user = {
+          sub: `sa:${account.serviceAccountId}`,
+          preferred_username: account.label,
+          email: null,
+          displayName: account.label,
+          roles: account.roles || [],
+          tenantId: account.tenantId,
+          iss: 'service-account',
+          aud: 'asr-api',
+        };
+
+        logAuthEvent(request.user.sub, 'login', 'success', request, 'service-account-key');
+        next();
+        return;
+      } catch (error) {
+        logAuthEvent('anonymous', 'login_failed', 'failure', request, `service-account-error: ${error.message}`);
+        response.status(500).json({ error: 'Authentication failed' });
+        return;
+      }
+    }
+
+    // ── JWT token — validate via Entra ID JWKS ──────────────────────
     if (!jwks) {
       if (allowDevBypass) {
         // JWKS not configured but token was sent — use dev user
@@ -121,7 +165,6 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
     }
 
     try {
-      const token = authorizationHeader.split(' ')[1];
       const verifyOptions = {};
       if (issuer) {
         verifyOptions.issuer = issuer;

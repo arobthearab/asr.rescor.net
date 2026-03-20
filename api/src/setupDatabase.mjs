@@ -23,6 +23,7 @@ const SCRIPTS = [
   '010-tenant-gates.cypher',
   '011-audit-events.cypher',
   '012-apoc-ttl.cypher',
+  '013-service-accounts.cypher',
 ];
 
 // ────────────────────────────────────────────────────────────────────

@@ -23,6 +23,8 @@ import { UserStore } from './persistence/UserStore.mjs';
 import { AuthEventStore } from './persistence/AuthEventStore.mjs';
 import { AuditEventStore } from './persistence/AuditEventStore.mjs';
 import { TenantStore } from './persistence/TenantStore.mjs';
+import { ServiceAccountStore } from './persistence/ServiceAccountStore.mjs';
+import { createServiceAccountRouter } from './routes/serviceAccounts.mjs';
 
 const PORT = 3100;
 
@@ -49,6 +51,7 @@ async function bootstrap() {
   const authEventStore = new AuthEventStore(database);
   const auditEventStore = new AuditEventStore(database);
   const tenantStore = new TenantStore(database);
+  const serviceAccountStore = new ServiceAccountStore(database);
 
   const stormService = await StormService.create({ configuration });
 
@@ -59,7 +62,7 @@ async function bootstrap() {
   const allowedTenants = allowedTenantsRaw ? allowedTenantsRaw.split(',').map((id) => id.trim()).filter(Boolean) : [];
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
-  const authenticate = createAuthenticationMiddleware({ isDevelopment, tenantId, clientId, userStore, allowedTenants, authEventStore });
+  const authenticate = createAuthenticationMiddleware({ isDevelopment, tenantId, clientId, userStore, allowedTenants, authEventStore, serviceAccountStore });
 
   // Health check (unauthenticated)
   application.get('/api/health', (_request, response) => {
@@ -94,6 +97,7 @@ async function bootstrap() {
   application.use('/api/reviews', authorize('admin', 'auditor'), createAuditorCommentsRouter(database, auditEventStore));
   application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createRemediationRouter(database, auditEventStore));
   application.use('/api/admin', authorize('admin'), createAdminRouter(database, userStore, authEventStore, auditEventStore, tenantStore));
+  application.use('/api/admin/service-accounts', authorize('admin'), createServiceAccountRouter(serviceAccountStore, auditEventStore));
   application.use('/api/admin/questionnaire', authorize('admin'), createQuestionnaireAdminRouter(database, auditEventStore));
   application.use('/api', createGateRouter(database, stormService, auditEventStore));
   application.use('/api', createExportRouter(database, stormService));
