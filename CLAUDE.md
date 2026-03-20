@@ -30,10 +30,10 @@ See [docs/PROJECT-PATTERNS.md](docs/PROJECT-PATTERNS.md) for ASR-specific conven
 - Scoring: RSK/STORM model — computation delegated to `StormService` (`api/src/StormService.mjs`, instantiated via `StormService.create({ configuration })`); all tuning parameters loaded from Neo4j
 - Four tuning dials: ScoringConfig, ClassificationChoice.factor, WeightTier.value, Question.choiceScores
 - Core packages: @rescor/core-db (Neo4jOperations), @rescor/core-config (Infisical), @rescor/core-utils
-- Persistence stores (`api/src/persistence/`): UserStore, AuthEventStore (login trail + APOC TTL), AuditEventStore (data-mutation trail), TenantStore (lifecycle management)
+- Persistence stores (`api/src/persistence/`): UserStore, AuthEventStore (login trail + APOC TTL), AuditEventStore (data-mutation trail), TenantStore (lifecycle management), ServiceAccountStore (machine-to-machine API keys)
 - Rate limiting: authLimiter (20 req/15 min per IP on `/api/auth/*`), apiLimiter (300 req/min keyed by `tenantId || ip` on `/api/*`) — `api/src/middleware/rateLimiter.mjs`
 - Infisical config keys used at runtime: `entra.tenantId`, `entra.clientId`, `entra.allowedTenants`, `server.corsAllowedOrigins` (comma-separated; absent in dev = allow all)
-- Cypher DDL: api/cypher/001-constraints through 012-apoc-ttl (run via cypher:setup); new files must also be registered in api/src/setupDatabase.mjs SCRIPTS array; setup auto-bootstraps a default Questionnaire + Snapshot if none exist
+- Cypher DDL: api/cypher/001-constraints through 013-service-accounts (run via cypher:setup); new files must also be registered in api/src/setupDatabase.mjs SCRIPTS array; setup auto-bootstraps a default Questionnaire + Snapshot if none exist
 - Default/demo tenant: `tenantId: 'demo'` — all seed migrations stamp global nodes with this ID
 - Client overlay: `--overlay <dir>` CLI arg to cypher:setup for client-specific cypher scripts
 - YAML-to-Cypher: `npm run cypher:configure -w api -- <path/to/asr_questions.yaml>`
@@ -52,3 +52,13 @@ See [docs/PROJECT-PATTERNS.md](docs/PROJECT-PATTERNS.md) for ASR-specific conven
 ## Active Plans
 
 _(none currently)_
+
+## Service Account Auth (Machine-to-Machine)
+
+Service accounts allow external systems (e.g. CC API) to call admin endpoints without Entra ID JWT.
+
+- **Key prefix**: `sa_` (distinguishes from Entra ID JWT in authenticate middleware)
+- **Storage**: `ServiceAccount` nodes in Neo4j, key stored as SHA-256 hash
+- **Admin routes**: `POST/GET/DELETE /api/admin/service-accounts` (require admin role)
+- **Auth flow**: `Authorization: Bearer sa_<key>` → hash lookup → populate `request.user` with `sub: 'sa:<uuid>'`, roles from account
+- **Cypher**: `api/cypher/013-service-accounts.cypher` (uniqueness constraints)
