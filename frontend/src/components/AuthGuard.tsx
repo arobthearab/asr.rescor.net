@@ -7,6 +7,7 @@
 // immediately with no auth gate.
 
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import { useIsAuthenticated, useMsal } from '@azure/msal-react';
 import { InteractionStatus } from '@azure/msal-browser';
 import { Box, CircularProgress, Typography } from '@mui/material';
@@ -51,10 +52,11 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 function LoginRedirect() {
   const { instance } = useMsal();
 
-  // Fire once on mount
-  instance.loginRedirect({ scopes: ['openid', 'profile', 'email'] }).catch((error) => {
-    console.error('[asr] Login redirect failed:', error);
-  });
+  useEffect(() => {
+    instance.loginRedirect({ scopes: ['openid', 'profile', 'email'] }).catch((error) => {
+      console.error('[asr] Login redirect failed:', error);
+    });
+  }, [instance]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 10, gap: 2 }}>

@@ -42,7 +42,7 @@ export default function UserMenu() {
   function handleSignOut(): void {
     handleClose();
     if (isMsalConfigured && account) {
-      instance.logoutRedirect({ postLogoutRedirectUri: window.location.origin });
+      instance.logoutRedirect({ account, postLogoutRedirectUri: window.location.origin });
     } else {
       // Dev bypass — just reload to clear any cached state
       window.location.reload();
