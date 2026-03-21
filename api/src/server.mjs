@@ -25,6 +25,7 @@ import { AuditEventStore } from './persistence/AuditEventStore.mjs';
 import { TenantStore } from './persistence/TenantStore.mjs';
 import { ServiceAccountStore } from './persistence/ServiceAccountStore.mjs';
 import { createServiceAccountRouter } from './routes/serviceAccounts.mjs';
+import { createTenantDataRouter } from './routes/tenantData.mjs';
 
 const PORT = 3100;
 
@@ -99,6 +100,7 @@ async function bootstrap() {
   application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createRemediationRouter(database, auditEventStore));
   application.use('/api/admin', authorize('admin'), createAdminRouter(database, userStore, authEventStore, auditEventStore, tenantStore));
   application.use('/api/admin/service-accounts', authorize('admin'), createServiceAccountRouter(serviceAccountStore, auditEventStore));
+  application.use('/api/admin/tenants', authorize('admin'), createTenantDataRouter(database, auditEventStore));
   application.use('/api/admin/questionnaire', authorize('admin'), createQuestionnaireAdminRouter(database, auditEventStore));
   application.use('/api', createGateRouter(database, stormService, auditEventStore));
   application.use('/api', createExportRouter(database, stormService));
