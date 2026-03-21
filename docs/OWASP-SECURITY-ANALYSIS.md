@@ -295,35 +295,35 @@ This document evaluates the application platform against:
 
 ## Priority Remediation Roadmap
 
-### Tier 1 — High Impact, Quick Wins
+### Tier 1 — High Impact, Quick Wins ✓ COMPLETE (132a8cb)
 
-| # | Gap | Fix | Effort |
+| # | Gap | Fix | Status |
 |---|-----|-----|--------|
-| 1 | Error message leakage (A05) | Global Express error handler; sanitize `error.message` in production | Small |
-| 2 | Missing security headers (A02/A05) | Add `helmet` to Express; add CSP + HSTS to nginx; `server_tokens off`; `app.disable('x-powered-by')` | Small |
-| 3 | Technology fingerprinting (A05) | `server_tokens off` in nginx; `app.disable('x-powered-by')` in Express | Trivial |
-| 4 | 403 failure logging (A09) | Log `authorize()` rejections to AuditEventStore | Small |
+| 1 | Error message leakage (A05) | Recorder + sanitized 62 catch blocks + global error handler | **DONE** |
+| 2 | Missing security headers (A02/A05) | helmet middleware + nginx HSTS/CSP/Permissions-Policy | **DONE** |
+| 3 | Technology fingerprinting (A05) | helmet removes X-Powered-By; nginx server_tokens off | **DONE** |
+| 4 | 403 failure logging (A09) | authorize() rejections logged to Recorder + AuditEventStore | **DONE** |
 
 ### Tier 2 — Medium Impact, Moderate Effort
 
-| # | Gap | Fix | Effort |
+| # | Gap | Fix | Status |
 |---|-----|-----|--------|
-| 5 | SCA tooling (A06/A08) | Configure Dependabot or Renovate on GitHub; add `npm audit` | Small |
-| 6 | Security alerting (MT-8/A09) | Webhook or polling alert for cross-tenant attempts and brute-force events | Medium |
-| 7 | AuditEvent TTL (MT-8) | APOC TTL on AuditEvent nodes (same pattern as AuthEvent) | Small |
-| 8 | STORM baseUrl in health (A05) | Remove `stormService.snapshot()` from unauthenticated health endpoint | Trivial |
+| 5 | SCA tooling (A06/A08) | Dependabot enabled for api/ and frontend/ workspaces | **DONE** (4d68943) |
+| 6 | Security alerting (MT-8/A09) | Webhook or polling alert for cross-tenant attempts and brute-force events | Open |
+| 7 | AuditEvent TTL (MT-8) | 90-day APOC TTL on AuditEvent nodes (matches AuthEvent pattern) | **DONE** (2f20e0d) |
+| 8 | STORM baseUrl in health (A05) | Removed from unauthenticated health endpoint | **DONE** (132a8cb) |
 
 ### Tier 3 — Strategic / Group E
 
-| # | Gap | Fix | Effort |
+| # | Gap | Fix | Status |
 |---|-----|-----|--------|
-| 9 | Security tests (A04) | Test framework + tests for RBAC, tenant isolation, IDOR prevention | Large |
-| 10 | CI/CD pipeline (A08) | GitHub Actions with lint, type-check, `npm audit`, (future: tests) | Medium |
-| 11 | Tenant offboarding (MT-7) | Hard purge workflow, OFFBOARDING status, access revocation, provisioning rollback | Large |
-| 12 | Encryption at rest (A02/Neo4j) | Host-level LUKS/dm-crypt on Neo4j volume | Medium |
-| 13 | Structured logging (A09) | Replace `console.*` with structured JSON logger (Pino/Winston) | Medium |
-| 14 | Formal threat model (A04) | STRIDE analysis covering all application flows | Medium |
-| 15 | Server-side session revocation (A01/A07) | Short-lived JWT + refresh token pattern, or token blacklist | Large |
+| 9 | Security tests (A04) | Test framework + tests for RBAC, tenant isolation, IDOR prevention | Open |
+| 10 | CI/CD pipeline (A08) | GitHub Actions with lint, type-check, `npm audit`, (future: tests) | Open |
+| 11 | Tenant offboarding (MT-7) | Hard purge workflow, OFFBOARDING status, access revocation, provisioning rollback | Open |
+| 12 | Encryption at rest (A02/Neo4j) | Host-level LUKS/dm-crypt on Neo4j volume | Open |
+| 13 | Structured logging (A09) | Recorder wired throughout API (9000–9239 event codes) | **DONE** (132a8cb) |
+| 14 | Formal threat model (A04) | STRIDE analysis covering all application flows | Open |
+| 15 | Server-side session revocation (A01/A07) | Short-lived JWT + refresh token pattern, or token blacklist | Open |
 
 ---
 
