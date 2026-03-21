@@ -401,6 +401,15 @@ import type { DraftSummary, DraftDetail, QuestionnaireTemplate } from './types';
 
 const ADMIN_Q = `${BASE_URL}/admin/questionnaire`;
 
+export async function createQuestionnaire(name: string, description?: string): Promise<{ questionnaireId: string; name: string; active: boolean }> {
+  const response = await fetch(`${ADMIN_Q}/questionnaires`, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({ name, description }),
+  });
+  return (await handleResponse(response)) as { questionnaireId: string; name: string; active: boolean };
+}
+
 export async function fetchQuestionnaires(): Promise<QuestionnaireTemplate[]> {
   const headers = await authHeaders();
   const response = await fetch(`${ADMIN_Q}/questionnaires`, { headers });
@@ -463,13 +472,10 @@ export async function deleteQuestionnaireVersion(version: string): Promise<unkno
 }
 
 export async function importYaml(yamlText: string): Promise<DraftDetail> {
-  const token = await getAccessToken();
-  const headers: Record<string, string> = { 'Content-Type': 'text/yaml' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
   const response = await fetch(`${ADMIN_Q}/import`, {
     method: 'POST',
-    headers,
-    body: yamlText,
+    headers: await authHeaders(),
+    body: JSON.stringify({ yamlContent: yamlText }),
   });
   return (await handleResponse(response)) as DraftDetail;
 }

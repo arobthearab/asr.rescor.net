@@ -40,6 +40,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import UploadIcon from '@mui/icons-material/Upload';
 import {
   createDraft,
+  createQuestionnaire,
   deleteDraft,
   deleteQuestionnaireVersion,
   exportQuestionnaire,
@@ -138,6 +139,7 @@ export default function QuestionnaireEditorPage() {
   // Questionnaire templates
   const [questionnaires, setQuestionnaires] = useState<QuestionnaireTemplate[]>([]);
   const [newDraftQuestionnaireId, setNewDraftQuestionnaireId] = useState('');
+  const [newQuestionnaireName, setNewQuestionnaireName] = useState('');
 
   // ── Load drafts on mount ──────────────────────────────────────
 
@@ -200,20 +202,35 @@ export default function QuestionnaireEditorPage() {
   async function handleCreateDraft(): Promise<void> {
     setLoading(true);
     try {
-      const questionnaireId = newDraftQuestionnaireId || undefined;
+      let questionnaireId = newDraftQuestionnaireId || undefined;
+      const activeQuestionnaires = questionnaires.filter((q) => q.active);
+
+      // No questionnaires exist — create one first
+      if (activeQuestionnaires.length === 0) {
+        const name = newQuestionnaireName.trim() || 'ASR Questionnaire';
+        const created = await createQuestionnaire(name);
+        questionnaireId = created.questionnaireId;
+        await loadQuestionnaires();
+      }
+
       const detail = await createDraft(newDraftLabel || undefined, questionnaireId);
       setActiveDraftId(detail.draftId);
       setDraftLabel(detail.label);
       setDraftStatus(detail.status);
-      setDomains(detail.data.domains || []);
-      setDirty(false);
+      const loadedDomains = detail.data?.domains || [];
+      setDomains(loadedDomains.length > 0 ? loadedDomains : [emptyDomain(0)]);
+      setDirty(loadedDomains.length === 0);
       await loadDrafts();
-      setToast({ message: 'Draft created from live questionnaire.', severity: 'success' });
+      const message = loadedDomains.length > 0
+        ? 'Draft created from live questionnaire.'
+        : 'Empty draft created. Add domains and questions to build your questionnaire.';
+      setToast({ message, severity: 'success' });
     } catch (error) {
       setToast({ message: (error as Error).message, severity: 'error' });
     } finally {
       setNewDraftOpen(false);
       setNewDraftLabel('');
+      setNewQuestionnaireName('');
       setLoading(false);
     }
   }
@@ -716,6 +733,21 @@ export default function QuestionnaireEditorPage() {
         <Dialog open={newDraftOpen} onClose={() => setNewDraftOpen(false)} maxWidth="xs" fullWidth>
           <DialogTitle>Create Draft</DialogTitle>
           <DialogContent>
+            {questionnaires.filter((q) => q.active).length === 0 && (
+              <>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  No questionnaire exists yet. One will be created automatically.
+                </Alert>
+                <TextField
+                  fullWidth
+                  label="Questionnaire Name"
+                  placeholder="e.g. ASR Questionnaire"
+                  value={newQuestionnaireName}
+                  onChange={(event) => setNewQuestionnaireName(event.target.value)}
+                  sx={{ mb: 1 }}
+                />
+              </>
+            )}
             <TextField
               autoFocus
               fullWidth
@@ -744,9 +776,16 @@ export default function QuestionnaireEditorPage() {
                 Questionnaire: {questionnaires.find((q) => q.active)?.name}
               </Typography>
             )}
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Creates a copy of the current live questionnaire for editing.
-            </Typography>
+            {questionnaires.filter((q) => q.active).length === 0 && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                An empty draft will be created. Add domains and questions, then publish.
+              </Typography>
+            )}
+            {questionnaires.filter((q) => q.active).length > 0 && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Creates a copy of the current live questionnaire for editing.
+              </Typography>
+            )}
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setNewDraftOpen(false)}>Cancel</Button>
