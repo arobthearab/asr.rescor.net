@@ -35,15 +35,26 @@ import AddIcon from '@mui/icons-material/Add';
 import ClearIcon from '@mui/icons-material/Clear';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import FileUploadIcon from '@mui/icons-material/FileUpload';
 import PeopleIcon from '@mui/icons-material/People';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import DescriptionIcon from '@mui/icons-material/Description';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import { brandColors } from '../theme/theme';
-import { fetchReviews, fetchVersions, fetchQuestionnaires, createReview, renameReview, deleteReview, downloadQuestionnaireDocx, downloadQuestionnaireXlsx } from '../lib/apiClient';
+import { fetchReviews, fetchVersions, fetchQuestionnaires, createReview, renameReview, deleteReview, downloadQuestionnaireDocx, downloadQuestionnaireXlsx, downloadTenantExport, importTenantData, fetchTenants } from '../lib/apiClient';
+import type { TenantExportData, TenantImportResult, TenantSummary } from '../lib/apiClient';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import UserMenu from '../components/UserMenu';
 import type { QuestionnaireTemplate } from '../lib/types';
+
+// MUI extras for import dialog
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormLabel from '@mui/material/FormLabel';
 
 // ────────────────────────────────────────────────────────────────────
 // Rating color map
@@ -94,7 +105,7 @@ export default function DashboardPage() {
   const [applicationName, setApplicationName] = useState('');
   const [questionnaires, setQuestionnaires] = useState<QuestionnaireTemplate[]>([]);
   const [selectedQuestionnaireId, setSelectedQuestionnaireId] = useState('');
-  const { canCreate, canEdit, isAdmin } = useCurrentUser();
+  const { canCreate, canEdit, isAdmin, user } = useCurrentUser();
 
   // Filter state
   const [searchText, setSearchText] = useState('');
@@ -115,6 +126,17 @@ export default function DashboardPage() {
 
   // Delete confirmation dialog
   const [deleteTarget, setDeleteTarget] = useState<ReviewSummary | null>(null);
+
+  // Tenant export/import state
+  const [tenants, setTenants] = useState<TenantSummary[]>([]);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importData, setImportData] = useState<TenantExportData | null>(null);
+  const [importTargetTenantId, setImportTargetTenantId] = useState('');
+  const [importConflictStrategy, setImportConflictStrategy] = useState('reject');
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<TenantImportResult | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
   useEffect(() => {
     fetchReviews()
@@ -144,6 +166,19 @@ export default function DashboardPage() {
       })
       .catch(() => { /* questionnaires endpoint unavailable */ });
   }, []);
+
+  // Fetch tenants for admin export/import controls
+  useEffect(() => {
+    if (isAdmin) {
+      fetchTenants()
+        .then((data) => {
+          setTenants(data);
+          const defaultTenantId = user?.tenantId || (data.length === 1 ? data[0].tenantId : '');
+          if (defaultTenantId) setImportTargetTenantId(defaultTenantId);
+        })
+        .catch(() => { /* tenants endpoint unavailable */ });
+    }
+  }, [isAdmin, user?.tenantId]);
 
   // ── Version display helper ──────────────────────────────────────
 
@@ -284,6 +319,78 @@ export default function DashboardPage() {
     setDeleteTarget(null);
   }
 
+  // ── Export/Import ─────────────────────────────────────────────
+
+  async function handleExport(): Promise<void> {
+    const tenantId = user?.tenantId || tenants[0]?.tenantId;
+    if (!tenantId) return;
+    setExportLoading(true);
+    try {
+      await downloadTenantExport(tenantId);
+    } catch (error) {
+      console.error('[asr] export failed:', error);
+    } finally {
+      setExportLoading(false);
+    }
+  }
+
+  function handleImportFileSelect(event: React.ChangeEvent<HTMLInputElement>): void {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result as string) as TenantExportData;
+        if (!parsed?.manifest?.formatVersion) {
+          setImportError('Invalid export file: missing manifest');
+        } else {
+          setImportData(parsed);
+          setImportError(null);
+          setImportResult(null);
+        }
+      } catch {
+        setImportError('Invalid JSON file');
+        setImportData(null);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function openImportDialog(): void {
+    setImportDialogOpen(true);
+    setImportData(null);
+    setImportResult(null);
+    setImportError(null);
+    setImportConflictStrategy('reject');
+  }
+
+  function closeImportDialog(): void {
+    setImportDialogOpen(false);
+    setImportData(null);
+    setImportResult(null);
+    setImportError(null);
+  }
+
+  async function handleImport(): Promise<void> {
+    if (!importData || !importTargetTenantId) return;
+    setImportLoading(true);
+    setImportError(null);
+    try {
+      const result = await importTenantData(importTargetTenantId, importData, {
+        conflictStrategy: importConflictStrategy,
+      });
+      setImportResult(result);
+      // Refresh reviews after successful import
+      fetchReviews()
+        .then((data) => setReviews(data as ReviewSummary[]))
+        .catch(() => {});
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Import failed');
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
   // ── Render ──────────────────────────────────────────────────────
 
   return (
@@ -326,6 +433,22 @@ export default function DashboardPage() {
             <Tooltip title="Manage Users">
               <IconButton color="inherit" onClick={() => navigate('/admin/users')}>
                 <PeopleIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+          {isAdmin && (
+            <Tooltip title="Export Tenant Data">
+              <span>
+                <IconButton color="inherit" onClick={handleExport} disabled={exportLoading || tenants.length === 0}>
+                  <FileDownloadIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
+          {isAdmin && (
+            <Tooltip title="Import Tenant Data">
+              <IconButton color="inherit" onClick={openImportDialog}>
+                <FileUploadIcon />
               </IconButton>
             </Tooltip>
           )}
@@ -570,6 +693,97 @@ export default function DashboardPage() {
           <Button variant="contained" color="error" onClick={handleDelete}>
             Delete
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Import Tenant Data Dialog ──────────────────────────────── */}
+      <Dialog open={importDialogOpen} onClose={closeImportDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Import Tenant Data</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {/* File picker */}
+            <Button variant="outlined" component="label">
+              Select Export File (.json)
+              <input type="file" accept=".json" hidden onChange={handleImportFileSelect} />
+            </Button>
+
+            {/* Manifest preview */}
+            {importData && (
+              <Paper variant="outlined" sx={{ p: 2 }}>
+                <Typography variant="subtitle2" gutterBottom>Export Manifest</Typography>
+                <Typography variant="body2">Source: <strong>{importData.manifest.sourceTenantName}</strong> ({importData.manifest.sourceTenantId})</Typography>
+                <Typography variant="body2">Exported: {new Date(importData.manifest.exportedAt).toLocaleString()}</Typography>
+                <Typography variant="body2">By: {importData.manifest.exportedBy || 'unknown'}</Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  Counts: {Object.entries(importData.manifest.counts).map(([key, value]) => `${key}: ${value}`).join(', ')}
+                </Typography>
+              </Paper>
+            )}
+
+            {/* Target tenant selector */}
+            {tenants.length > 1 && (
+              <FormControl fullWidth size="small">
+                <InputLabel>Target Tenant</InputLabel>
+                <Select
+                  value={importTargetTenantId}
+                  label="Target Tenant"
+                  onChange={(event) => setImportTargetTenantId(event.target.value)}
+                >
+                  {tenants.map((tenant) => (
+                    <MenuItem key={tenant.tenantId} value={tenant.tenantId}>
+                      {tenant.name} ({tenant.tenantId})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+            {tenants.length === 1 && (
+              <Typography variant="body2" color="text.secondary">
+                Target: <strong>{tenants[0].name}</strong> ({tenants[0].tenantId})
+              </Typography>
+            )}
+
+            {/* Conflict strategy */}
+            <FormControl>
+              <FormLabel>Conflict Strategy</FormLabel>
+              <RadioGroup
+                value={importConflictStrategy}
+                onChange={(event) => setImportConflictStrategy(event.target.value)}
+              >
+                <FormControlLabel value="reject" control={<Radio size="small" />} label="Reject — fail if target has existing data" />
+                <FormControlLabel value="merge" control={<Radio size="small" />} label="Merge — skip entities that already exist" />
+                <FormControlLabel value="replace" control={<Radio size="small" />} label="Replace — wipe target data, then import" />
+              </RadioGroup>
+            </FormControl>
+
+            {/* Result / error */}
+            {importResult && (
+              <Alert severity="success">
+                Import successful. {Object.entries(importResult.counts).map(([key, value]) => `${key}: ${value}`).join(', ')}
+                {importResult.warnings.length > 0 && (
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    Warnings: {importResult.warnings.join('; ')}
+                  </Typography>
+                )}
+              </Alert>
+            )}
+            {importError && <Alert severity="error">{importError}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeImportDialog}>
+            {importResult ? 'Close' : 'Cancel'}
+          </Button>
+          {!importResult && (
+            <Button
+              variant="contained"
+              onClick={handleImport}
+              disabled={!importData || !importTargetTenantId || importLoading}
+              startIcon={importLoading ? <CircularProgress size={16} /> : undefined}
+            >
+              {importLoading ? 'Importing…' : 'Import'}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Box>

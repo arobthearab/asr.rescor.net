@@ -631,3 +631,72 @@ export async function fetchSessionEvents(params: {
   const response = await fetch(url, { headers });
   return (await handleResponse(response)) as import('./types').AuthEvent[];
 }
+
+// ════════════════════════════════════════════════════════════════════
+// Admin — Tenant Dataset Export / Import
+// ════════════════════════════════════════════════════════════════════
+
+export interface TenantExportManifest {
+  formatVersion: number;
+  exportedAt: string;
+  exportedBy: string | null;
+  sourceTenantId: string;
+  sourceTenantName: string;
+  counts: Record<string, number>;
+}
+
+export interface TenantExportData {
+  manifest: TenantExportManifest;
+  [key: string]: unknown;
+}
+
+export interface TenantImportResult {
+  success: boolean;
+  targetTenantId: string;
+  counts: Record<string, number>;
+  warnings: string[];
+}
+
+export interface TenantSummary {
+  tenantId: string;
+  name: string;
+  domain: string | null;
+  active: boolean;
+  created: string;
+  userCount: number;
+}
+
+export async function fetchTenants(): Promise<TenantSummary[]> {
+  const headers = await authHeaders();
+  const response = await fetch(`${BASE_URL}/admin/tenants`, { headers });
+  return (await handleResponse(response)) as TenantSummary[];
+}
+
+export async function downloadTenantExport(tenantId: string): Promise<void> {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  await downloadFile(
+    `${BASE_URL}/admin/tenants/${encodeURIComponent(tenantId)}/export`,
+    `asr_tenant_${tenantId}_${timestamp}.json`,
+  );
+}
+
+export async function importTenantData(
+  tenantId: string,
+  exportData: TenantExportData,
+  options?: { conflictStrategy?: string; regenerateIds?: boolean },
+): Promise<TenantImportResult> {
+  const query = new URLSearchParams();
+  if (options?.conflictStrategy) query.set('conflictStrategy', options.conflictStrategy);
+  if (options?.regenerateIds) query.set('regenerateIds', 'true');
+  const queryString = query.toString();
+
+  const response = await fetch(
+    `${BASE_URL}/admin/tenants/${encodeURIComponent(tenantId)}/import${queryString ? `?${queryString}` : ''}`,
+    {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify(exportData),
+    },
+  );
+  return (await handleResponse(response)) as TenantImportResult;
+}
