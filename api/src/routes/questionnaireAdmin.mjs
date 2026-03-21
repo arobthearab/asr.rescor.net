@@ -576,7 +576,7 @@ export function createQuestionnaireAdminRouter(database, auditEventStore = null)
         );
       }
 
-      body = { draftId, label, status: 'DRAFT', questionnaireId };
+      body = { draftId, label, status: 'DRAFT', questionnaireId, data: liveConfig };
     } catch (error) {
       statusCode = 500;
       body = { error: error.message };

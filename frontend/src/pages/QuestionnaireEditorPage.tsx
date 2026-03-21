@@ -204,13 +204,13 @@ export default function QuestionnaireEditorPage() {
       setDraftStatus(detail.status);
       setDomains(detail.data.domains || []);
       setDirty(false);
-      setNewDraftOpen(false);
-      setNewDraftLabel('');
       await loadDrafts();
       setToast({ message: 'Draft created from live questionnaire.', severity: 'success' });
     } catch (error) {
       setToast({ message: (error as Error).message, severity: 'error' });
     } finally {
+      setNewDraftOpen(false);
+      setNewDraftLabel('');
       setLoading(false);
     }
   }
@@ -769,6 +769,7 @@ export default function QuestionnaireEditorPage() {
               setDomains([]);
               setDraftLabel('');
               setDirty(false);
+              setConfirmPublish(false);
               loadDrafts();
             }}
             sx={{ mr: 1 }}
