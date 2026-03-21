@@ -58,7 +58,17 @@ export default function UserMenu() {
   function handleSignOut(): void {
     handleClose();
     if (isMsalConfigured && account) {
-      instance.logoutRedirect({ account, postLogoutRedirectUri: window.location.origin });
+      // Clear the local MSAL token cache but do NOT redirect to
+      // Entra ID's logout endpoint — that would terminate the
+      // entire SSO session (Teams, Outlook, etc.).
+      instance.logoutRedirect({
+        account,
+        postLogoutRedirectUri: window.location.origin,
+        onRedirectNavigate: () => {
+          window.location.href = window.location.origin;
+          return false;
+        },
+      });
     } else {
       // Dev bypass — just reload to clear any cached state
       window.location.reload();
