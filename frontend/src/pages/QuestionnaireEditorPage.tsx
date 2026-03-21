@@ -38,12 +38,14 @@ import HistoryIcon from '@mui/icons-material/History';
 import PublishIcon from '@mui/icons-material/Publish';
 import SaveIcon from '@mui/icons-material/Save';
 import UploadIcon from '@mui/icons-material/Upload';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import {
   createDraft,
   createQuestionnaire,
   deleteDraft,
   deleteQuestionnaireVersion,
   exportQuestionnaire,
+  fetchConfigurationVersion,
   fetchDraft,
   fetchDrafts,
   fetchQuestionnaires,
@@ -59,6 +61,7 @@ import type {
   DraftSummary,
   QuestionnaireTemplate,
   QuestionnaireVersion,
+  WeightTier,
 } from '../lib/types';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import UserMenu from '../components/UserMenu';
@@ -140,6 +143,12 @@ export default function QuestionnaireEditorPage() {
   const [questionnaires, setQuestionnaires] = useState<QuestionnaireTemplate[]>([]);
   const [newDraftQuestionnaireId, setNewDraftQuestionnaireId] = useState('');
   const [newQuestionnaireName, setNewQuestionnaireName] = useState('');
+
+  // Questionnaire viewer
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerLabel, setViewerLabel] = useState('');
+  const [viewerDomains, setViewerDomains] = useState<DraftDomain[]>([]);
+  const [viewerWeightTiers, setViewerWeightTiers] = useState<WeightTier[]>([]);
 
   // ── Load drafts on mount ──────────────────────────────────────
 
@@ -310,6 +319,23 @@ export default function QuestionnaireEditorPage() {
       await deleteQuestionnaireVersion(deleteVersionTarget.version);
       await loadVersions();
       setToast({ message: 'Version deleted.', severity: 'success' });
+    } catch (error) {
+      setToast({ message: (error as Error).message, severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── View published version ──────────────────────────────────
+
+  async function handleViewVersion(version: QuestionnaireVersion): Promise<void> {
+    setLoading(true);
+    try {
+      const data = (await fetchConfigurationVersion(version.version)) as DraftData & { weightTiers?: WeightTier[] };
+      setViewerLabel(version.label || version.version);
+      setViewerDomains(data.domains || []);
+      setViewerWeightTiers(data.weightTiers || []);
+      setViewerOpen(true);
     } catch (error) {
       setToast({ message: (error as Error).message, severity: 'error' });
     } finally {
@@ -669,6 +695,14 @@ export default function QuestionnaireEditorPage() {
                           {versionItem.current && (
                             <Chip label="Current" size="small" color="primary" />
                           )}
+                          <Tooltip title="View questionnaire">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleViewVersion(versionItem)}
+                            >
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                           {canDelete && (
                             <Tooltip title="Delete version (no assessments)">
                               <IconButton
@@ -803,6 +837,15 @@ export default function QuestionnaireEditorPage() {
           onClose={() => setImportOpen(false)}
           onTextChange={setImportText}
           onImport={handleImport}
+        />
+
+        {/* Questionnaire Viewer */}
+        <QuestionnaireViewer
+          open={viewerOpen}
+          label={viewerLabel}
+          domains={viewerDomains}
+          weightTiers={viewerWeightTiers}
+          onClose={() => setViewerOpen(false)}
         />
 
         {/* Toast */}
@@ -1149,6 +1192,140 @@ export default function QuestionnaireEditorPage() {
         {toast ? <Alert severity={toast.severity} onClose={() => setToast(null)}>{toast.message}</Alert> : undefined}
       </Snackbar>
     </Box>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ImportDialog — shared between picker and editor views
+// ════════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════════
+// QuestionnaireViewer — read-only snapshot of a published version
+// ════════════════════════════════════════════════════════════════════
+
+function QuestionnaireViewer({
+  open,
+  label,
+  domains,
+  weightTiers,
+  onClose,
+}: {
+  open: boolean;
+  label: string;
+  domains: DraftDomain[];
+  weightTiers: WeightTier[];
+  onClose: () => void;
+}) {
+  const tierMap = Object.fromEntries(weightTiers.map((tier) => [tier.name, tier.value]));
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth scroll="paper">
+      <DialogTitle>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Typography variant="h6">{label}</Typography>
+          <Chip label={`${domains.length} domain${domains.length !== 1 ? 's' : ''}`} size="small" />
+        </Stack>
+      </DialogTitle>
+      <DialogContent dividers>
+        {weightTiers.length > 0 && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Weight Tiers
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              {weightTiers.map((tier) => (
+                <Chip key={tier.name} label={`${tier.name}: ${tier.value}`} size="small" variant="outlined" />
+              ))}
+            </Stack>
+          </Box>
+        )}
+
+        {domains.map((domain) => (
+          <Accordion key={domain.domainIndex} defaultExpanded={domains.length <= 5}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography fontWeight={600}>
+                {domain.domainIndex + 1}. {domain.name}
+              </Typography>
+              {(domain.policyRefs.length > 0 || domain.csfRefs.length > 0) && (
+                <Stack direction="row" spacing={0.5} sx={{ ml: 2 }} alignItems="center">
+                  {domain.policyRefs.map((ref) => (
+                    <Chip key={ref} label={ref} size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                  ))}
+                  {domain.csfRefs.map((ref) => (
+                    <Chip key={ref} label={ref} size="small" variant="outlined" color="info" sx={{ fontSize: '0.7rem' }} />
+                  ))}
+                </Stack>
+              )}
+            </AccordionSummary>
+            <AccordionDetails>
+              <Stack spacing={2}>
+                {domain.questions.map((question) => (
+                  <Paper key={`${domain.domainIndex}-${question.questionIndex}`} variant="outlined" sx={{ p: 2 }}>
+                    <Typography variant="body1" fontWeight={500} gutterBottom>
+                      Q{question.questionIndex + 1}. {question.text}
+                    </Typography>
+
+                    <Stack direction="row" spacing={1} sx={{ mb: 1 }} flexWrap="wrap">
+                      <Chip
+                        label={question.weightTier}
+                        size="small"
+                        color={
+                          question.weightTier === 'Critical' ? 'error'
+                          : question.weightTier === 'High' ? 'warning'
+                          : question.weightTier === 'Medium' ? 'info'
+                          : 'default'
+                        }
+                      />
+                      {tierMap[question.weightTier] !== undefined && (
+                        <Chip label={`Weight: ${tierMap[question.weightTier]}`} size="small" variant="outlined" />
+                      )}
+                      {question.responsibleFunction && (
+                        <Chip label={question.responsibleFunction} size="small" variant="outlined" />
+                      )}
+                      <Chip label={`N/A Score: ${question.naScore}`} size="small" variant="outlined" />
+                    </Stack>
+
+                    <Box sx={{ ml: 2 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>Choices:</Typography>
+                      {question.choices.map((choice, choiceIndex) => (
+                        <Typography key={choiceIndex} variant="body2" sx={{ ml: 1 }}>
+                          {choice} — score: {question.choiceScores[choiceIndex] ?? '?'}
+                        </Typography>
+                      ))}
+                    </Box>
+
+                    {question.guidance && (
+                      <Box sx={{ mt: 1, ml: 2, pl: 1, borderLeft: '3px solid', borderColor: 'info.light' }}>
+                        <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                          {question.guidance}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {question.applicability && question.applicability.length > 0 && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Applicability: {question.applicability.join(', ')}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Paper>
+                ))}
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
+        ))}
+
+        {domains.length === 0 && (
+          <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+            No domain data available for this version.
+          </Typography>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

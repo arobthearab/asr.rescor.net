@@ -158,7 +158,7 @@ export function createConfigRouter(database) {
            OPTIONAL MATCH (review:Review {questionnaireVersion: snapshot.version, active: true})
            RETURN snapshot.version AS version,
                   snapshot.label   AS label,
-                  snapshot.created AS created,
+                  toString(snapshot.created) AS created,
                   count(review)    AS reviewCount
            ORDER BY snapshot.created DESC`
         : `MATCH (snapshot:QuestionnaireSnapshot)
@@ -166,7 +166,7 @@ export function createConfigRouter(database) {
            OPTIONAL MATCH (review:Review {questionnaireVersion: snapshot.version, active: true})
            RETURN snapshot.version AS version,
                   snapshot.label   AS label,
-                  snapshot.created AS created,
+                  toString(snapshot.created) AS created,
                   count(review)    AS reviewCount
            ORDER BY snapshot.created DESC`;
 
