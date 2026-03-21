@@ -28,6 +28,8 @@ import { TenantStore } from './persistence/TenantStore.mjs';
 import { ServiceAccountStore } from './persistence/ServiceAccountStore.mjs';
 import { createServiceAccountRouter } from './routes/serviceAccounts.mjs';
 import { createTenantDataRouter } from './routes/tenantData.mjs';
+import { SecurityMonitor } from './SecurityMonitor.mjs';
+import { TokenDenylist } from './TokenDenylist.mjs';
 
 const PORT = 3100;
 
@@ -74,8 +76,9 @@ async function bootstrap() {
   const allowedTenantsRaw = await configuration.getConfig('entra', 'allowedTenants') || '';
   const allowedTenants = allowedTenantsRaw ? allowedTenantsRaw.split(',').map((id) => id.trim()).filter(Boolean) : [];
   const isDevelopment = process.env.NODE_ENV !== 'production';
+  const tokenDenylist = new TokenDenylist();
 
-  const authenticate = createAuthenticationMiddleware({ isDevelopment, tenantId, clientId, userStore, allowedTenants, authEventStore, serviceAccountStore });
+  const authenticate = createAuthenticationMiddleware({ isDevelopment, tenantId, clientId, userStore, allowedTenants, authEventStore, serviceAccountStore, tokenDenylist });
 
   // Health check (unauthenticated)
   application.get('/api/health', (_request, response) => {
@@ -109,6 +112,26 @@ async function bootstrap() {
   application.use('/api/reviews', authorize('admin', 'auditor'), createAuditorCommentsRouter(database, auditEventStore, recorder));
   application.use('/api/reviews', authorize('admin', 'reviewer', 'user', 'auditor'), createRemediationRouter(database, auditEventStore, recorder));
   application.use('/api/admin', authorize('admin'), createAdminRouter(database, userStore, authEventStore, auditEventStore, tenantStore, recorder));
+
+  // ── Session revocation (requires tokenDenylist, admin-only) ─────
+  application.post('/api/admin/revoke-sessions/:sub', authorize('admin'), (request, response) => {
+    const targetSub = request.params.sub;
+    tokenDenylist.revokeUser(targetSub);
+    recorder?.emit(9165, 'w', 'User sessions revoked', {
+      targetSub, revokedBy: request.user?.sub,
+    });
+    auditEventStore?.logEvent({
+      tenantId: request.user?.tenantId,
+      sub: request.user?.sub,
+      action: 'session.revoke',
+      resourceType: 'User',
+      resourceId: targetSub,
+      ipAddress: request.ip,
+      userAgent: request.get('user-agent'),
+    });
+    response.json({ revoked: true, sub: targetSub });
+  });
+
   application.use('/api/admin/service-accounts', authorize('admin'), createServiceAccountRouter(serviceAccountStore, auditEventStore, recorder));
   application.use('/api/admin/tenants', authorize('admin'), createTenantDataRouter(database, auditEventStore, recorder));
   application.use('/api/admin/questionnaire', authorize('admin'), createQuestionnaireAdminRouter(database, auditEventStore, recorder));
@@ -129,6 +152,10 @@ async function bootstrap() {
   application.listen(PORT, () => {
     recorder.emit(9000, 'i', `ASR API listening on port ${PORT}`);
   });
+
+  // Start background security monitoring
+  const securityMonitor = new SecurityMonitor(database, recorder);
+  securityMonitor.start();
 
   return application;
 }
