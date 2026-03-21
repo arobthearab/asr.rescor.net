@@ -11,4 +11,4 @@ api/logs/*.log
 api/*.db
 
 # Build output
-frontend/dist/
+frontend/dist/.claude/
