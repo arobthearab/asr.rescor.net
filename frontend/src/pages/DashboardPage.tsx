@@ -607,7 +607,7 @@ export default function DashboardPage() {
                           sx={{
                             minWidth: 80,
                             fontWeight: 700,
-                            backgroundColor: ratingColorMap[review.rating] || brandColors.gray,
+                            backgroundColor: review.rskNormalized ? (ratingColorMap[review.rating] || brandColors.gray) : brandColors.gray,
                             color: '#fff',
                           }}
                         />
