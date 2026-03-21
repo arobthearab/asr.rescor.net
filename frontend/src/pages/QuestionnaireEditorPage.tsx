@@ -132,6 +132,9 @@ export default function QuestionnaireEditorPage() {
   const [versions, setVersions] = useState<QuestionnaireVersion[]>([]);
   const [deleteVersionTarget, setDeleteVersionTarget] = useState<QuestionnaireVersion | null>(null);
 
+  // Delete draft confirmation
+  const [deleteDraftTarget, setDeleteDraftTarget] = useState<DraftSummary | null>(null);
+
   // Questionnaire templates
   const [questionnaires, setQuestionnaires] = useState<QuestionnaireTemplate[]>([]);
   const [newDraftQuestionnaireId, setNewDraftQuestionnaireId] = useState('');
@@ -259,7 +262,10 @@ export default function QuestionnaireEditorPage() {
 
   // ── Delete draft ──────────────────────────────────────────────
 
-  async function handleDeleteDraft(draftId: string): Promise<void> {
+  async function handleDeleteDraft(): Promise<void> {
+    if (!deleteDraftTarget) return;
+    const draftId = deleteDraftTarget.draftId;
+    setDeleteDraftTarget(null);
     setLoading(true);
     try {
       await deleteDraft(draftId);
@@ -604,7 +610,7 @@ export default function QuestionnaireEditorPage() {
                         size="small"
                         onClick={(event) => {
                           event.stopPropagation();
-                          handleDeleteDraft(draft.draftId);
+                          setDeleteDraftTarget(draft);
                         }}
                         title="Delete draft"
                       >
@@ -681,6 +687,26 @@ export default function QuestionnaireEditorPage() {
           <DialogActions>
             <Button onClick={() => setDeleteVersionTarget(null)}>Cancel</Button>
             <Button variant="contained" color="error" onClick={handleDeleteVersion} disabled={loading}>
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete draft confirmation */}
+        <Dialog
+          open={deleteDraftTarget !== null}
+          onClose={() => setDeleteDraftTarget(null)}
+        >
+          <DialogTitle>Delete Draft?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Draft <strong>{deleteDraftTarget?.label || 'Untitled'}</strong> will be permanently deleted.
+              This cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteDraftTarget(null)}>Cancel</Button>
+            <Button variant="contained" color="error" onClick={handleDeleteDraft} disabled={loading}>
               Delete
             </Button>
           </DialogActions>

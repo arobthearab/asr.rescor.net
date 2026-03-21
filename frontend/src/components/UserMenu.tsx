@@ -4,9 +4,25 @@
 
 import { useState } from 'react';
 import { useMsal } from '@azure/msal-react';
-import { Avatar, Box, IconButton, Menu, MenuItem, Typography } from '@mui/material';
+import { Avatar, Box, Chip, IconButton, Menu, MenuItem, Typography } from '@mui/material';
 import { isMsalConfigured } from '../lib/authConfig';
 import { useCurrentUser } from '../hooks/useCurrentUser';
+
+// ── Role chip styling ──────────────────────────────────────────────
+
+const roleChipColors: Record<string, string> = {
+  admin: '#ef5350',
+  reviewer: '#42a5f5',
+  auditor: '#ab47bc',
+  user: '#66bb6a',
+};
+
+function topRole(roles: string[]): string {
+  for (const role of ['admin', 'reviewer', 'auditor', 'user']) {
+    if (roles.includes(role)) return role;
+  }
+  return roles[0] || 'user';
+}
 
 export default function UserMenu() {
   const { instance } = useMsal();
@@ -49,8 +65,24 @@ export default function UserMenu() {
     }
   }
 
+  const primaryRole = topRole(apiUser?.roles || []);
+  const chipColor = roleChipColors[primaryRole] || roleChipColors.user;
+
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+      <Chip
+        label={primaryRole.toUpperCase()}
+        size="small"
+        sx={{
+          mr: 1,
+          height: 22,
+          fontSize: '0.7rem',
+          fontWeight: 700,
+          letterSpacing: 0.5,
+          bgcolor: chipColor,
+          color: '#fff',
+        }}
+      />
       <Typography variant="body2" color="inherit" sx={{ mr: 1, opacity: 0.9, display: { xs: 'none', sm: 'block' } }}>
         {displayName}
       </Typography>
