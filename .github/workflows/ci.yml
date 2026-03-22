@@ -7,71 +7,14 @@ on:
     branches: [main]
 
 jobs:
-  frontend-typecheck:
-    name: Frontend type-check & build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: https://npm.pkg.github.com
-      - name: Install dependencies
-        run: npm ci --workspace=frontend
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PKG_TOKEN }}
-      - name: Type-check
-        run: npx tsc --noEmit
-        working-directory: frontend
-      - name: Build
-        run: npm run build --workspace=frontend
-
-  api-test:
-    name: API security tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: https://npm.pkg.github.com
-      - name: Install dependencies
-        run: npm ci --workspace=api
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PKG_TOKEN }}
-      - name: Run tests
-        run: npm test --workspace=api
-
-  api-audit:
-    name: API dependency audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: https://npm.pkg.github.com
-      - name: Install dependencies
-        run: npm ci --workspace=api
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PKG_TOKEN }}
-      - name: Audit production dependencies
-        run: npm audit --workspace=api --omit=dev --audit-level=high
-        continue-on-error: true
-
-  frontend-audit:
-    name: Frontend dependency audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: https://npm.pkg.github.com
-      - name: Install dependencies
-        run: npm ci --workspace=frontend
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PKG_TOKEN }}
-      - name: Audit production dependencies
-        run: npm audit --workspace=frontend --omit=dev --audit-level=high
-        continue-on-error: true
+  ci:
+    name: CI Pipeline
+    uses: arobthearab/core.rescor.net/.github/workflows/reusable-ci.yml@main
+    with:
+      node-version: '20'
+      workspaces: 'api,frontend'
+      test-command: 'npm test --workspace=api'
+      build-command: 'npm run build --workspace=frontend'
+      lint-command: ''
+    secrets:
+      pkg-token: ${{ secrets.PKG_TOKEN }}

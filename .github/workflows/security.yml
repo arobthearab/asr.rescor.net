@@ -1,0 +1,26 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 0'  # Weekly Sunday 6 AM UTC
+
+jobs:
+  sast:
+    name: SAST Pipeline
+    uses: arobthearab/core.rescor.net/.github/workflows/reusable-sast.yml@main
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    with:
+      node-version: '20'
+      codeql-enabled: true
+      semgrep-rules: 'p/javascript p/nodejs p/express'
+      audit-level: 'high'
+    secrets:
+      pkg-token: ${{ secrets.PKG_TOKEN }}

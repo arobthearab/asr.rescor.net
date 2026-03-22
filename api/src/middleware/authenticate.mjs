@@ -55,8 +55,9 @@ function extractRequestMetadata(request) {
  * @param {AuthEventStore} [options.authEventStore] — optional AuthEventStore for activity logging
  * @param {ServiceAccountStore} [options.serviceAccountStore] — optional store for API key auth
  * @param {TokenDenylist} [options.tokenDenylist] — optional denylist for session revocation
+ * @param {Recorder} [options.recorder] — optional Recorder for structured logging
  */
-export function createAuthenticationMiddleware({ isDevelopment = false, tenantId, clientId, userStore = null, allowedTenants = [], authEventStore = null, serviceAccountStore = null, tokenDenylist = null }) {
+export function createAuthenticationMiddleware({ isDevelopment = false, tenantId, clientId, userStore = null, allowedTenants = [], authEventStore = null, serviceAccountStore = null, tokenDenylist = null, recorder = null }) {
   const developmentUser = Object.freeze({
     sub: 'dev-user-0000',
     preferred_username: 'developer',
@@ -74,7 +75,7 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
     const metadata = extractRequestMetadata(request);
     const tenantId = request.user?.tenantId || null;
     authEventStore.logEvent({ sub, tenantId, action, ...metadata, outcome, reason }).catch((error) => {
-      console.warn('[asr] Failed to log auth event:', error.message);
+      recorder?.emit(9016, 'w', 'Failed to log auth event', { error: error.message });
     });
   }
 
@@ -100,6 +101,13 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
     // Dev bypass is only allowed from localhost — proxied requests
     // (e.g. ngrok) must authenticate even in development mode.
     const allowDevBypass = isDevelopment && isLocalhostRequest(request);
+
+    // ── DAST scanner bypass (CI only — requires DAST_MODE + NODE_ENV=test) ──
+    if (process.env.DAST_MODE === 'true' && process.env.NODE_ENV === 'test') {
+      request.user = { sub: 'dast-scanner', roles: ['reader'], tenantId: 'demo', iss: 'dast', aud: 'asr-api' };
+      next();
+      return;
+    }
 
     // ── No token present ──────────────────────────────────────────
     if (!hasToken) {
@@ -222,7 +230,7 @@ export function createAuthenticationMiddleware({ isDevelopment = false, tenantId
     } catch (error) {
       if (allowDevBypass) {
         // Token invalid in dev — fall back to synthetic user
-        console.warn('[asr] Token validation failed in dev mode, using synthetic user:', error.message);
+        recorder?.emit(9017, 'd', 'Token validation failed in dev mode, using synthetic user', { error: error.message });
         request.user = { ...developmentUser };
         if (userStore) { await userStore.ensureUser(request.user); }
         logAuthEvent(developmentUser.sub, 'login', 'success', request, 'dev-bypass-token-invalid');
