@@ -8,7 +8,7 @@ on:
 jobs:
   dast:
     name: DAST Pipeline
-    uses: arobthearab/core.rescor.net/.github/workflows/reusable-dast.yml@main
+    uses: RESCOR-LLC/core.rescor.net/.github/workflows/reusable-dast.yml@main
     permissions:
       security-events: write
       contents: read

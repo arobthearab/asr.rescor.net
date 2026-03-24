@@ -12,7 +12,7 @@ on:
 jobs:
   sast:
     name: SAST Pipeline
-    uses: arobthearab/core.rescor.net/.github/workflows/reusable-sast.yml@main
+    uses: RESCOR-LLC/core.rescor.net/.github/workflows/reusable-sast.yml@main
     permissions:
       security-events: write
       actions: read

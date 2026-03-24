@@ -9,7 +9,7 @@ on:
 jobs:
   ci:
     name: CI Pipeline
-    uses: arobthearab/core.rescor.net/.github/workflows/reusable-ci.yml@main
+    uses: RESCOR-LLC/core.rescor.net/.github/workflows/reusable-ci.yml@main
     with:
       node-version: '20'
       workspaces: 'api,frontend'
