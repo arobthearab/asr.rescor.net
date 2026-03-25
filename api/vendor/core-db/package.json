@@ -1,0 +1,49 @@
+{
+  "name": "@rescor-llc/core-db",
+  "version": "1.0.2",
+  "description": "RESCOR Core Database Module - Unified database operations for IBM DB2 and Neo4j",
+  "type": "module",
+  "main": "src/index.mjs",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./src/index.mjs"
+    }
+  },
+  "files": [
+    "src",
+    "index.d.ts"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsup",
+    "clean": "rm -rf dist",
+    "lint": "node -e \"process.exit(0)\""
+  },
+  "keywords": [
+    "database",
+    "db2",
+    "ibm",
+    "neo4j",
+    "graph",
+    "cypher",
+    "operations",
+    "rescor"
+  ],
+  "author": "RESCOR",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "neo4j-driver": "^5.28.3"
+  },
+  "optionalDependencies": {
+    "ibm_db": "^3.2.4"
+  },
+  "devDependencies": {
+    "@rescor-llc/core-config": "*",
+    "@rescor-llc/core-utils": "*"
+  }
+}

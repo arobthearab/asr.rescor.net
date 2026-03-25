@@ -1,0 +1,33 @@
+{
+  "name": "@rescor-llc/core-config",
+  "version": "1.0.1",
+  "type": "module",
+  "main": "src/index.mjs",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./src/index.mjs"
+    }
+  },
+  "files": [
+    "src",
+    "dist",
+    "index.d.ts"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "scripts": {
+    "build": "tsup",
+    "clean": "rm -rf dist",
+    "lint": "node -e \"process.exit(0)\""
+  },
+  "dependencies": {
+    "@rescor-llc/core-utils": "*",
+    "js-yaml": "^4.1.1"
+  },
+  "optionalDependencies": {
+    "@infisical/sdk": "^4.0.6"
+  }
+}

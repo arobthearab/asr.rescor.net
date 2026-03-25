@@ -4,19 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --env-file-if-exists=../../core.rescor.net/.env --env-file=../.env --watch src/server.mjs",
-    "start": "node --env-file-if-exists=../../core.rescor.net/.env --env-file=../.env src/server.mjs",
+    "dev": "node --env-file-if-exists=../../core.rescor.net/.env --env-file-if-exists=../.env --watch src/server.mjs",
+    "start": "node --env-file-if-exists=../../core.rescor.net/.env --env-file-if-exists=../.env src/server.mjs",
+    "start:standalone": "node --env-file-if-exists=.env src/server.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "cypher:setup": "node --env-file-if-exists=../../core.rescor.net/.env --env-file=../.env src/setupDatabase.mjs",
-    "cypher:configure": "node --env-file-if-exists=../../core.rescor.net/.env --env-file=../.env src/configureFromYaml.mjs"
+    "cypher:setup": "node --env-file-if-exists=../../core.rescor.net/.env --env-file-if-exists=../.env src/setupDatabase.mjs",
+    "cypher:setup:standalone": "node --env-file-if-exists=.env src/setupDatabase.mjs",
+    "cypher:configure": "node --env-file-if-exists=../../core.rescor.net/.env --env-file-if-exists=../.env src/configureFromYaml.mjs"
   },
   "dependencies": {
-    "@infisical/sdk": "^4.0.6",
-    "@rescor-llc/core-auth": "^0.2.0",
-    "@rescor-llc/core-config": "^1.0.0",
-    "@rescor-llc/core-db": "^1.0.0",
-    "@rescor-llc/core-utils": "^1.0.0",
+    "@rescor-llc/core-config": "file:./vendor/core-config",
+    "@rescor-llc/core-db": "file:./vendor/core-db",
+    "@rescor-llc/core-utils": "file:./vendor/core-utils",
     "cors": "^2.8.5",
     "docx": "^9.6.1",
     "exceljs": "^4.4.0",
@@ -27,6 +27,9 @@
     "js-yaml": "^4.1.1",
     "neo4j-driver": "^5.28.3",
     "uuid": "^9.0.0"
+  },
+  "optionalDependencies": {
+    "@infisical/sdk": "^4.0.6"
   },
   "devDependencies": {
     "vitest": "^3.2.4"

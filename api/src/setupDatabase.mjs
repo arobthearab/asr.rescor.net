@@ -107,6 +107,74 @@ function discoverOverlayScripts() {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// seedFromEnvironment — create tenant + admin from SEED_* env vars
+// ────────────────────────────────────────────────────────────────────
+// For distributable deployments: third parties set SEED_TENANT_ID,
+// SEED_TENANT_NAME, SEED_TENANT_DOMAIN, and SEED_ADMIN_EMAIL to
+// provision their own tenant and admin user.  Additive — does not
+// replace the static 005/006 cypher scripts.
+
+async function seedFromEnvironment(database) {
+  const tenantId = process.env.SEED_TENANT_ID;
+  const tenantName = process.env.SEED_TENANT_NAME;
+  const tenantDomain = process.env.SEED_TENANT_DOMAIN;
+  const adminEmail = process.env.SEED_ADMIN_EMAIL;
+
+  if (!tenantId) {
+    return;
+  }
+
+  console.log(`Seeding tenant from environment (${tenantId})...`);
+
+  await database.query(
+    `MERGE (t:Tenant {tenantId: $tenantId})
+       ON CREATE SET
+         t.name      = $name,
+         t.domain    = $domain,
+         t.createdAt = datetime(),
+         t.active    = true
+       ON MATCH SET
+         t.name      = $name,
+         t.domain    = $domain`,
+    {
+      tenantId,
+      name: tenantName || tenantId,
+      domain: tenantDomain || 'localhost',
+    }
+  );
+
+  console.log(`  ✓ Tenant "${tenantName || tenantId}" seeded`);
+
+  if (adminEmail) {
+    await database.query(
+      `MERGE (u:User {email: $email})
+         ON CREATE SET
+           u.sub       = $sub,
+           u.username  = $email,
+           u.roles     = '["admin"]',
+           u.firstSeen = datetime(),
+           u.lastSeen  = datetime()
+         ON MATCH SET
+           u.roles     = '["admin"]',
+           u.lastSeen  = datetime()`,
+      {
+        email: adminEmail,
+        sub: `pre-provisioned:${adminEmail}`,
+      }
+    );
+
+    await database.query(
+      `MATCH (u:User {email: $email})
+       MATCH (t:Tenant {tenantId: $tenantId})
+       MERGE (u)-[:BELONGS_TO]->(t)`,
+      { email: adminEmail, tenantId }
+    );
+
+    console.log(`  ✓ Admin "${adminEmail}" seeded and linked to tenant`);
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────
 // bootstrapQuestionnaire — create initial Questionnaire + snapshot
 // if none exist yet.  Reads the live Question/Domain nodes and
 // packages them into a Questionnaire wrapper so review creation works.
@@ -224,6 +292,9 @@ async function runSetup() {
       await runCypherFile(database, filePath, `overlay/${fileName}`);
     }
   }
+
+  // Seed custom tenant + admin from SEED_* env vars (distributable deploys)
+  await seedFromEnvironment(database);
 
   // Bootstrap default Questionnaire if none exists
   await bootstrapQuestionnaire(database);

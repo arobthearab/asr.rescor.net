@@ -53,6 +53,21 @@ See [docs/PROJECT-PATTERNS.md](docs/PROJECT-PATTERNS.md) for ASR-specific conven
 
 _(none currently)_
 
+## Distributable Packaging
+
+ASR can be deployed by third parties without access to RESCOR infrastructure:
+
+- **Vendored core packages**: `api/vendor/` contains core-db, core-config, core-utils (`file:` refs in package.json)
+- **Vendor sync**: `./scripts/vendor-sync.sh` copies from sibling core.rescor.net checkout
+- **No registry auth**: `npm install` works without `NODE_AUTH_TOKEN` — all `@rescor-llc` packages resolve locally
+- **Infisical optional**: `INFISICAL_ENABLED` env var (default: `false`); Configuration falls back to EnvironmentStore
+- **Parameterized seeds**: `SEED_TENANT_ID`, `SEED_TENANT_NAME`, `SEED_TENANT_DOMAIN`, `SEED_ADMIN_EMAIL` env vars
+- **Distributable Docker**: `docker-compose.distributable.yml` + `Dockerfile.api.distributable` + `Dockerfile.frontend.distributable`
+- **Standalone scripts**: `npm run start:standalone` and `npm run cypher:setup:standalone` (reads `.env` from api/ directly)
+- **CSP template**: `deployment/docker/nginx-frontend.conf.template` with `CSP_CONNECT_EXTRA` env var
+- **ibm_db**: Optional dependency in vendored core-db (ASR only uses Neo4j)
+- **Deployment guide**: `docs/DEPLOYMENT-GUIDE.md`
+
 ## Service Account Auth (Machine-to-Machine)
 
 Service accounts allow external systems (e.g. CC API) to call admin endpoints without Entra ID JWT.

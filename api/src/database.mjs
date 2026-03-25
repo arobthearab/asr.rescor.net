@@ -78,7 +78,7 @@ export async function createConfiguration() {
   const { Configuration } = await import('@rescor-llc/core-config');
 
   const configuration = new Configuration({
-    enableInfisical: true,
+    enableInfisical: process.env.INFISICAL_ENABLED === 'true',
     requireInfisical: false,
     enableCache: true,
     infisicalOptions: {
