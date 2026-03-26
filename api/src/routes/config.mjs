@@ -38,75 +38,7 @@ export function createConfigRouter(database, recorder) {
           body = JSON.parse(snapshotResult[0].data);
         }
       } else {
-        // ── Current (live) questionnaire ──────────────────────────
-        const scoringConfiguration = await loadScoringConfiguration(database, tenantId);
-
-        const classificationResult = await database.query(
-          `MATCH (classification:ClassificationQuestion)-[:HAS_CHOICE]->(choice:ClassificationChoice)
-           RETURN classification, choice
-           ORDER BY choice.sortOrder`
-        );
-
-        const sourceResult = await database.query(
-          `MATCH (sourceQuestion:SourceQuestion)-[:HAS_CHOICE]->(choice:SourceChoice)
-           RETURN sourceQuestion, choice
-           ORDER BY choice.sortOrder`
-        );
-
-        const environmentResult = await database.query(
-          `MATCH (environmentQuestion:EnvironmentQuestion)-[:HAS_CHOICE]->(choice:EnvironmentChoice)
-           RETURN environmentQuestion, choice
-           ORDER BY choice.sortOrder`
-        );
-
-        const archetypeResult = await database.query(
-          `MATCH (archetype:DeploymentArchetype)
-           RETURN archetype
-           ORDER BY archetype.sortOrder`
-        );
-
-        const domainsResult = await database.query(
-          `MATCH (domain:Domain)
-           WHERE domain.active = true
-           OPTIONAL MATCH (domain)<-[:BELONGS_TO]-(question:Question)
-           WHERE question.active = true
-           RETURN domain, collect(question) AS questions
-           ORDER BY domain.domainIndex`
-        );
-
-        const weightTiersResult = await database.query(
-          `MATCH (tier:WeightTier) RETURN tier ORDER BY tier.value DESC`
-        );
-
-        const policyLookupMap = await loadPolicyLookup(database);
-        const csfLookupMap = await loadCsfLookup(database);
-        const tagConfigMap = await loadComplianceTagConfigs(database, tenantId);
-
-        const questionnairesResult = await database.query(
-          `MATCH (q:Questionnaire)
-           OPTIONAL MATCH (q)-[:CURRENT_VERSION]->(s:QuestionnaireSnapshot)
-           RETURN q.questionnaireId AS questionnaireId,
-                  q.name            AS name,
-                  q.active          AS active,
-                  s.version         AS currentVersion
-           ORDER BY q.name`
-        );
-
-        body = {
-          scoringConfiguration,
-          questionnaires: questionnairesResult.map((record) => ({
-            questionnaireId: record.questionnaireId,
-            name: record.name,
-            active: record.active,
-            currentVersion: record.currentVersion || null,
-          })),
-          classification: buildClassificationResponse(classificationResult),
-          source: buildTranscendentalResponse(sourceResult, 'sourceQuestion', 'source'),
-          environment: buildTranscendentalResponse(environmentResult, 'environmentQuestion', 'environment'),
-          archetypes: archetypeResult.map((record) => record.archetype || record),
-          domains: buildDomainsResponse(domainsResult, policyLookupMap, csfLookupMap, tagConfigMap),
-          weightTiers: weightTiersResult.map((record) => record.tier || record),
-        };
+        body = await loadCurrentQuestionnaire(database, tenantId);
       }
     } catch (error) {
       statusCode = 500;
@@ -194,6 +126,83 @@ export function createConfigRouter(database, recorder) {
   });
 
   return router;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// loadCurrentQuestionnaire — fetch live questionnaire + config
+// ────────────────────────────────────────────────────────────────────
+
+async function loadCurrentQuestionnaire(database, tenantId) {
+  const scoringConfiguration = await loadScoringConfiguration(database, tenantId);
+
+  const classificationResult = await database.query(
+    `MATCH (classification:ClassificationQuestion)-[:HAS_CHOICE]->(choice:ClassificationChoice)
+     RETURN classification, choice
+     ORDER BY choice.sortOrder`
+  );
+
+  const sourceResult = await database.query(
+    `MATCH (sourceQuestion:SourceQuestion)-[:HAS_CHOICE]->(choice:SourceChoice)
+     RETURN sourceQuestion, choice
+     ORDER BY choice.sortOrder`
+  );
+
+  const environmentResult = await database.query(
+    `MATCH (environmentQuestion:EnvironmentQuestion)-[:HAS_CHOICE]->(choice:EnvironmentChoice)
+     RETURN environmentQuestion, choice
+     ORDER BY choice.sortOrder`
+  );
+
+  const archetypeResult = await database.query(
+    `MATCH (archetype:DeploymentArchetype)
+     RETURN archetype
+     ORDER BY archetype.sortOrder`
+  );
+
+  const domainsResult = await database.query(
+    `MATCH (domain:Domain)
+     WHERE domain.active = true
+     OPTIONAL MATCH (domain)<-[:BELONGS_TO]-(question:Question)
+     WHERE question.active = true
+     RETURN domain, collect(question) AS questions
+     ORDER BY domain.domainIndex`
+  );
+
+  const weightTiersResult = await database.query(
+    `MATCH (tier:WeightTier) RETURN tier ORDER BY tier.value DESC`
+  );
+
+  const policyLookupMap = await loadPolicyLookup(database);
+  const csfLookupMap = await loadCsfLookup(database);
+  const tagConfigMap = await loadComplianceTagConfigs(database, tenantId);
+
+  const questionnairesResult = await database.query(
+    `MATCH (q:Questionnaire)
+     OPTIONAL MATCH (q)-[:CURRENT_VERSION]->(s:QuestionnaireSnapshot)
+     RETURN q.questionnaireId AS questionnaireId,
+            q.name            AS name,
+            q.active          AS active,
+            s.version         AS currentVersion
+     ORDER BY q.name`
+  );
+
+  const result = {
+    scoringConfiguration,
+    questionnaires: questionnairesResult.map((record) => ({
+      questionnaireId: record.questionnaireId,
+      name: record.name,
+      active: record.active,
+      currentVersion: record.currentVersion || null,
+    })),
+    classification: buildClassificationResponse(classificationResult),
+    source: buildTranscendentalResponse(sourceResult, 'sourceQuestion', 'source'),
+    environment: buildTranscendentalResponse(environmentResult, 'environmentQuestion', 'environment'),
+    archetypes: archetypeResult.map((record) => record.archetype || record),
+    domains: buildDomainsResponse(domainsResult, policyLookupMap, csfLookupMap, tagConfigMap),
+    weightTiers: weightTiersResult.map((record) => record.tier || record),
+  };
+
+  return result;
 }
 
 // ────────────────────────────────────────────────────────────────────

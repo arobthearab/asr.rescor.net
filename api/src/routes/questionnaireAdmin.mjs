@@ -263,27 +263,27 @@ async function readLiveConfig(database, tenantId = null) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Publish — apply draft data to live Neo4j nodes
+// Publish — statement builders (each returns [{ cypher, params }])
 // ────────────────────────────────────────────────────────────────────
 
-async function publishDraft(database, draftData, questionnaireLabel, publishedBy) {
+function buildWeightTierStatements(draftData) {
+  const statements = (draftData.weightTiers || []).map((tier) => ({
+    cypher: `
+      MERGE (tier:WeightTier {name: $name})
+        SET tier.value   = $value,
+            tier.updated = datetime()
+    `,
+    params: { name: tier.name, value: tier.value },
+  }));
+
+  return statements;
+}
+
+function buildClassificationStatements(draftData) {
   const statements = [];
 
-  // ── Weight tiers (must exist before HAS_WEIGHT relationships) ──
-  for (const tier of (draftData.weightTiers || [])) {
-    statements.push({
-      cypher: `
-        MERGE (tier:WeightTier {name: $name})
-          SET tier.value   = $value,
-              tier.updated = datetime()
-      `,
-      params: { name: tier.name, value: tier.value },
-    });
-  }
-
-  // ── Classification question + choices ──────────────────────────
   if (draftData.classification) {
-    const choiceParams = draftData.classification.choices.map((choice, index) => ({
+    const choiceParameters = draftData.classification.choices.map((choice, index) => ({
       text: choice.text,
       factor: choice.factor,
       sortOrder: choice.sortOrder ?? index,
@@ -301,13 +301,18 @@ async function publishDraft(database, draftData, questionnaireLabel, publishedBy
               c.sortOrder = choice.sortOrder,
               c.updated   = datetime()
       `,
-      params: { text: draftData.classification.text, choices: choiceParams },
+      params: { text: draftData.classification.text, choices: choiceParameters },
     });
   }
 
-  // ── Source question + choices ───────────────────────────────────
+  return statements;
+}
+
+function buildSourceStatements(draftData) {
+  const statements = [];
+
   if (draftData.source) {
-    const choiceParams = draftData.source.choices.map((choice, index) => ({
+    const choiceParameters = draftData.source.choices.map((choice, index) => ({
       text: choice.text,
       source: choice.source,
       sortOrder: choice.sortOrder ?? index,
@@ -325,13 +330,18 @@ async function publishDraft(database, draftData, questionnaireLabel, publishedBy
               c.sortOrder = choice.sortOrder,
               c.updated   = datetime()
       `,
-      params: { text: draftData.source.text, choices: choiceParams },
+      params: { text: draftData.source.text, choices: choiceParameters },
     });
   }
 
-  // ── Environment question + choices ─────────────────────────────
+  return statements;
+}
+
+function buildEnvironmentStatements(draftData) {
+  const statements = [];
+
   if (draftData.environment) {
-    const choiceParams = draftData.environment.choices.map((choice, index) => ({
+    const choiceParameters = draftData.environment.choices.map((choice, index) => ({
       text: choice.text,
       environment: choice.environment,
       sortOrder: choice.sortOrder ?? index,
@@ -349,51 +359,110 @@ async function publishDraft(database, draftData, questionnaireLabel, publishedBy
               c.sortOrder = choice.sortOrder,
               c.updated   = datetime()
       `,
-      params: { text: draftData.environment.text, choices: choiceParams },
+      params: { text: draftData.environment.text, choices: choiceParameters },
     });
   }
 
-  // ── Deployment archetypes ──────────────────────────────────────
-  for (const archetype of (draftData.archetypes || [])) {
-    statements.push({
+  return statements;
+}
+
+function buildArchetypeStatements(draftData) {
+  const statements = (draftData.archetypes || []).map((archetype) => ({
+    cypher: `
+      MERGE (archetype:DeploymentArchetype {code: $code})
+        SET archetype.label       = $label,
+            archetype.description = $description,
+            archetype.source      = $source,
+            archetype.environment = $environment,
+            archetype.sortOrder   = $sortOrder,
+            archetype.updated     = datetime()
+    `,
+    params: {
+      code: archetype.code,
+      label: archetype.label,
+      description: archetype.description || '',
+      source: archetype.source,
+      environment: archetype.environment,
+      sortOrder: archetype.sortOrder,
+    },
+  }));
+
+  return statements;
+}
+
+function buildComplianceTagStatements(draftData) {
+  const statements = Object.entries(draftData.complianceSources || {}).map(([tag, config]) => ({
+    cypher: `
+      MERGE (ctc:ComplianceTagConfig {tag: $tag})
+        SET ctc.action  = $action,
+            ctc.baseUrl = $baseUrl,
+            ctc.updated = datetime()
+    `,
+    params: { tag, action: config.action || null, baseUrl: config.baseUrl || null },
+  }));
+
+  return statements;
+}
+
+function buildQuestionStatements(domain, domainIndex) {
+  const statements = domain.questions.map((question, questionIndex) => ({
+    cypher: `
+      MERGE (question:Question {domainIndex: $domainIndex, questionIndex: $questionIndex})
+        ON CREATE SET question.questionId = randomUUID()
+        SET question.text                = $text,
+            question.weightTier          = $weightTier,
+            question.choices             = $choices,
+            question.choiceScores        = $choiceScores,
+            question.naScore             = $naScore,
+            question.applicability       = $applicability,
+            question.guidance            = $guidance,
+            question.responsibleFunction = $responsibleFunction,
+            question.active              = true,
+            question.updated             = datetime()
+    `,
+    params: {
+      domainIndex,
+      questionIndex,
+      text: question.text,
+      weightTier: question.weightTier,
+      choices: question.choices || [],
+      choiceScores: question.choiceScores || [],
+      naScore: question.naScore ?? 1,
+      applicability: question.applicability || [],
+      guidance: question.guidance || null,
+      responsibleFunction: question.responsibleFunction || null,
+    },
+  }));
+
+  return statements;
+}
+
+function buildDomainRelationshipStatements(domainIndex) {
+  const statements = [
+    {
       cypher: `
-        MERGE (archetype:DeploymentArchetype {code: $code})
-          SET archetype.label       = $label,
-              archetype.description = $description,
-              archetype.source      = $source,
-              archetype.environment = $environment,
-              archetype.sortOrder   = $sortOrder,
-              archetype.updated     = datetime()
+        MATCH (domain:Domain {domainIndex: $domainIndex})
+        MATCH (question:Question) WHERE question.domainIndex = $domainIndex
+        MERGE (question)-[:BELONGS_TO]->(domain)
       `,
-      params: {
-        code: archetype.code,
-        label: archetype.label,
-        description: archetype.description || '',
-        source: archetype.source,
-        environment: archetype.environment,
-        sortOrder: archetype.sortOrder,
-      },
-    });
-  }
-
-  // ── Compliance tag configs ─────────────────────────────────────
-  for (const [tag, config] of Object.entries(draftData.complianceSources || {})) {
-    statements.push({
+      params: { domainIndex },
+    },
+    {
       cypher: `
-        MERGE (ctc:ComplianceTagConfig {tag: $tag})
-          SET ctc.action  = $action,
-              ctc.baseUrl = $baseUrl,
-              ctc.updated = datetime()
+        MATCH (question:Question) WHERE question.domainIndex = $domainIndex
+        MATCH (tier:WeightTier {name: question.weightTier})
+        MERGE (question)-[:HAS_WEIGHT]->(tier)
       `,
-      params: { tag, action: config.action || null, baseUrl: config.baseUrl || null },
-    });
-  }
+      params: { domainIndex },
+    },
+  ];
 
-  // ── Domains and questions ─────────────────────────────────────
-  for (let domainIndex = 0; domainIndex < draftData.domains.length; domainIndex++) {
-    const domain = draftData.domains[domainIndex];
+  return statements;
+}
 
-    statements.push({
+function buildSingleDomainStatements(domain, domainIndex) {
+  const statements = [
+    {
       cypher: `
         MERGE (domain:Domain {domainIndex: $domainIndex})
           SET domain.name       = $name,
@@ -408,115 +477,94 @@ async function publishDraft(database, draftData, questionnaireLabel, publishedBy
         policyRefs: domain.policyRefs || [],
         csfRefs: domain.csfRefs || [],
       },
-    });
+    },
+    ...buildQuestionStatements(domain, domainIndex),
+    ...buildDomainRelationshipStatements(domainIndex),
+  ];
 
-    for (let questionIndex = 0; questionIndex < domain.questions.length; questionIndex++) {
-      const question = domain.questions[questionIndex];
+  return statements;
+}
 
-      statements.push({
-        cypher: `
-          MERGE (question:Question {domainIndex: $domainIndex, questionIndex: $questionIndex})
-            ON CREATE SET question.questionId = randomUUID()
-            SET question.text                = $text,
-                question.weightTier          = $weightTier,
-                question.choices             = $choices,
-                question.choiceScores        = $choiceScores,
-                question.naScore             = $naScore,
-                question.applicability       = $applicability,
-                question.guidance            = $guidance,
-                question.responsibleFunction = $responsibleFunction,
-                question.active              = true,
-                question.updated             = datetime()
-        `,
-        params: {
-          domainIndex,
-          questionIndex,
-          text: question.text,
-          weightTier: question.weightTier,
-          choices: question.choices || [],
-          choiceScores: question.choiceScores || [],
-          naScore: question.naScore ?? 1,
-          applicability: question.applicability || [],
-          guidance: question.guidance || null,
-          responsibleFunction: question.responsibleFunction || null,
-        },
-      });
-    }
-
-    // Wire relationships
-    statements.push({
-      cypher: `
-        MATCH (domain:Domain {domainIndex: $domainIndex})
-        MATCH (question:Question) WHERE question.domainIndex = $domainIndex
-        MERGE (question)-[:BELONGS_TO]->(domain)
-      `,
-      params: { domainIndex },
-    });
-
-    statements.push({
-      cypher: `
-        MATCH (question:Question) WHERE question.domainIndex = $domainIndex
-        MATCH (tier:WeightTier {name: question.weightTier})
-        MERGE (question)-[:HAS_WEIGHT]->(tier)
-      `,
-      params: { domainIndex },
-    });
-  }
-
-  // ── Soft-deactivate orphaned domains ──────────────────────────
-  statements.push({
+function buildOrphanCleanupStatements(draftData) {
+  const domainDeactivation = {
     cypher: `
       MATCH (domain:Domain) WHERE domain.domainIndex >= $domainCount
       SET domain.active = false, domain.updated = datetime()
     `,
     params: { domainCount: draftData.domains.length },
-  });
+  };
 
-  // ── Soft-deactivate orphaned questions ────────────────────────
-  for (let domainIndex = 0; domainIndex < draftData.domains.length; domainIndex++) {
-    const questionCount = draftData.domains[domainIndex].questions.length;
-    statements.push({
+  const questionDeactivations = draftData.domains.map((domain, domainIndex) => ({
+    cypher: `
+      MATCH (question:Question {domainIndex: $domainIndex})
+      WHERE question.questionIndex >= $questionCount
+      SET question.active = false, question.updated = datetime()
+    `,
+    params: { domainIndex, questionCount: domain.questions.length },
+  }));
+
+  const statements = [domainDeactivation, ...questionDeactivations];
+
+  return statements;
+}
+
+function buildDomainStatements(draftData) {
+  const perDomainStatements = draftData.domains.flatMap((domain, domainIndex) =>
+    buildSingleDomainStatements(domain, domainIndex)
+  );
+
+  const statements = [...perDomainStatements, ...buildOrphanCleanupStatements(draftData)];
+
+  return statements;
+}
+
+function buildSnapshotStatements(snapshotJson, version, label) {
+  const statements = [
+    {
       cypher: `
-        MATCH (question:Question {domainIndex: $domainIndex})
-        WHERE question.questionIndex >= $questionCount
-        SET question.active = false, question.updated = datetime()
+        MERGE (snapshot:QuestionnaireSnapshot {version: $version})
+          ON CREATE SET snapshot.label   = $label,
+                        snapshot.data    = $data,
+                        snapshot.created = datetime()
+          ON MATCH  SET snapshot.label   = $label,
+                        snapshot.data    = $data
       `,
-      params: { domainIndex, questionCount },
-    });
-  }
+      params: { version, label, data: snapshotJson },
+    },
+  ];
 
-  // ── Compute version hash from draft JSON ──────────────────────
+  return statements;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Publish — orchestrator: concatenates all builders and executes
+// ────────────────────────────────────────────────────────────────────
+
+async function publishDraft(database, draftData, questionnaireLabel, publishedBy) {
   const draftJson = JSON.stringify(draftData);
   const questionnaireVersion = createHash('sha256').update(draftJson).digest('hex').slice(0, 12);
 
-  // ── Stamp ScoringConfig ───────────────────────────────────────
-  // NOTE: questionnaireVersion/Label removed from ScoringConfig.
-  // Version pointer now lives on Questionnaire → CURRENT_VERSION.
-
-  // ── Create QuestionnaireSnapshot ──────────────────────────────
   const snapshotData = { ...draftData, questionnaireVersion, questionnaireLabel };
-  statements.push({
-    cypher: `
-      MERGE (snapshot:QuestionnaireSnapshot {version: $version})
-        ON CREATE SET snapshot.label   = $label,
-                      snapshot.data    = $data,
-                      snapshot.created = datetime()
-        ON MATCH  SET snapshot.label   = $label,
-                      snapshot.data    = $data
-    `,
-    params: {
-      version: questionnaireVersion,
-      label: questionnaireLabel,
-      data: JSON.stringify(snapshotData),
-    },
-  });
+  const snapshotJson = JSON.stringify(snapshotData);
 
-  // ── Execute all statements ────────────────────────────────────
+  const statements = [
+    ...buildWeightTierStatements(draftData),
+    ...buildClassificationStatements(draftData),
+    ...buildSourceStatements(draftData),
+    ...buildEnvironmentStatements(draftData),
+    ...buildArchetypeStatements(draftData),
+    ...buildComplianceTagStatements(draftData),
+    ...buildDomainStatements(draftData),
+    ...buildSnapshotStatements(snapshotJson, questionnaireVersion, questionnaireLabel),
+  ];
+
   for (const { cypher, params } of statements) {
     await database.query(cypher, params);
   }
 
-  return { questionnaireVersion, statementCount: statements.length };
+  const result = { questionnaireVersion, statementCount: statements.length };
+
+  return result;
 }
 
 // ────────────────────────────────────────────────────────────────────

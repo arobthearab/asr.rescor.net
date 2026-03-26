@@ -298,15 +298,11 @@ async function loadReviewExportData(database, reviewId) {
 
 
 // ════════════════════════════════════════════════════════════════════
-// 4a. DOCX Questionnaire Builder
+// 4a. DOCX Questionnaire Builder (decomposed)
 // ════════════════════════════════════════════════════════════════════
 
-function buildQuestionnaireDocx(config) {
-  const { scoringConfiguration, classification, domains, weightTiers } = config;
-  const children = [];
-
-  // Title
-  children.push(
+function buildDocxTitleSection(scoringConfiguration) {
+  const children = [
     new Paragraph({
       children: [new TextRun({ text: 'Application Security Review', bold: true, size: 48, color: RESCOR_GREEN })],
       alignment: AlignmentType.CENTER,
@@ -325,18 +321,14 @@ function buildQuestionnaireDocx(config) {
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 },
     }),
-  );
+  ];
+  return children;
+}
 
-  // Instructions heading
-  children.push(heading('Instructions', HeadingLevel.HEADING_1));
-  children.push(paragraph(
-    'This questionnaire assesses the security posture of applications. ' +
-    'Each question maps to organizational policies and NIST CSF 2.0 subcategories. ' +
-    'For each question, select exactly one response. If not applicable, select "N/A" with justification.',
-  ));
-
-  // Weight tier table
-  children.push(heading('Weight Tiers', HeadingLevel.HEADING_2));
+function buildDocxWeightTierTable(weightTiers) {
+  const children = [
+    heading('Weight Tiers', HeadingLevel.HEADING_2),
+  ];
   const tierRows = [
     headerRow(['Tier', 'Value', 'Priority', 'Escalation']),
     ...weightTiers.map((tier) => {
@@ -353,9 +345,13 @@ function buildQuestionnaireDocx(config) {
     }),
   ];
   children.push(simpleTable(tierRows));
+  return children;
+}
 
-  // Rating scale
-  children.push(heading('Risk Rating Scale', HeadingLevel.HEADING_2));
+function buildDocxRatingScaleSection() {
+  const children = [
+    heading('Risk Rating Scale', HeadingLevel.HEADING_2),
+  ];
   const ratingRows = [
     headerRow(['Range', 'Rating', 'Description']),
     ratingRow('0–25%', 'Low', 'Strong posture — controls mature and effective'),
@@ -364,12 +360,18 @@ function buildQuestionnaireDocx(config) {
     ratingRow('76–100%', 'Critical', 'Fundamental controls missing or ineffective'),
   ];
   children.push(simpleTable(ratingRows));
+  return children;
+}
 
-  // Application info placeholder
-  children.push(new Paragraph({ children: [new PageBreak()] }));
-  children.push(heading('Application Information', HeadingLevel.HEADING_1));
-  const infoFields = ['Application Name', 'Business Owner', 'Technical Owner', 'CMDB ID',
-    'Risk Classification', 'Assessment Date', 'Assessor'];
+function buildDocxApplicationInfoSection() {
+  const children = [
+    new Paragraph({ children: [new PageBreak()] }),
+    heading('Application Information', HeadingLevel.HEADING_1),
+  ];
+  const infoFields = [
+    'Application Name', 'Business Owner', 'Technical Owner', 'CMDB ID',
+    'Risk Classification', 'Assessment Date', 'Assessor',
+  ];
   const infoRows = [
     headerRow(['Field', 'Value']),
     ...infoFields.map((field) => new TableRow({
@@ -377,26 +379,59 @@ function buildQuestionnaireDocx(config) {
     })),
   ];
   children.push(simpleTable(infoRows));
+  return children;
+}
 
-  // Classification question
-  children.push(heading('Risk Classification', HeadingLevel.HEADING_2));
-  children.push(paragraph(classification.text));
-  const classRows = [
+function buildDocxClassificationSection(classification) {
+  const children = [
+    heading('Risk Classification', HeadingLevel.HEADING_2),
+    paragraph(classification.text),
+  ];
+  const classificationRows = [
     headerRow(['Choice', 'Factor']),
     ...classification.choices.map((choice) => new TableRow({
       children: [textCell(choice.text), textCell(String(choice.factor))],
     })),
   ];
-  children.push(simpleTable(classRows));
+  children.push(simpleTable(classificationRows));
+  return children;
+}
 
-  // Domain sections
-  children.push(new Paragraph({ children: [new PageBreak()] }));
+function buildDocxQuestionTableForDomain(domain, startingQuestionNumber) {
+  const questionRows = [headerRow(['#', 'Weight', 'Question', 'Answer Choices', '✓', 'Notes'])];
+  let questionNumber = startingQuestionNumber;
+
+  for (const question of domain.questions) {
+    questionNumber++;
+    const choiceTexts = [...(question.choices || []), 'N/A'];
+
+    questionRows.push(new TableRow({
+      children: [
+        textCell(`Q${questionNumber}`),
+        shadedCell(question.weightTier, WEIGHT_FILLS[question.weightTier] || INFO_BG),
+        textCell(question.text),
+        textCell(choiceTexts.map((choice, index) => {
+          const score = index < (question.choiceScores || []).length
+            ? question.choiceScores[index]
+            : (index === choiceTexts.length - 1 ? question.naScore : 0);
+          return `${choice}  [${score}]`;
+        }).join('\n')),
+        textCell('☐'),
+        textCell(''),
+      ],
+    }));
+  }
+
+  return { rows: questionRows, nextQuestionNumber: questionNumber };
+}
+
+function buildDocxDomainSections(domains) {
+  const children = [new Paragraph({ children: [new PageBreak()] })];
   let questionNumber = 0;
 
   for (const domain of domains) {
     children.push(heading(`Domain ${domain.domainIndex}: ${domain.name}`, HeadingLevel.HEADING_1));
 
-    // Compliance references
     if (domain.csfRefs.length > 0) {
       children.push(paragraph(`NIST CSF: ${domain.csfRefs.join(', ')}`, { color: RESCOR_BLUE, italics: true }));
     }
@@ -404,36 +439,19 @@ function buildQuestionnaireDocx(config) {
       children.push(paragraph(`Policy Scope: ${domain.policyRefs.join(', ')}`, { color: RESCOR_GRAY, italics: true }));
     }
 
-    // Questions table
-    const questionRows = [headerRow(['#', 'Weight', 'Question', 'Answer Choices', '✓', 'Notes'])];
-
-    for (const question of domain.questions) {
-      questionNumber++;
-      const choiceTexts = [...(question.choices || []), 'N/A'];
-
-      questionRows.push(new TableRow({
-        children: [
-          textCell(`Q${questionNumber}`),
-          shadedCell(question.weightTier, WEIGHT_FILLS[question.weightTier] || INFO_BG),
-          textCell(question.text),
-          textCell(choiceTexts.map((choice, index) => {
-            const score = index < (question.choiceScores || []).length
-              ? question.choiceScores[index]
-              : (index === choiceTexts.length - 1 ? question.naScore : 0);
-            return `${choice}  [${score}]`;
-          }).join('\n')),
-          textCell('☐'),
-          textCell(''),
-        ],
-      }));
-    }
-
-    children.push(simpleTable(questionRows));
+    const questionTable = buildDocxQuestionTableForDomain(domain, questionNumber);
+    questionNumber = questionTable.nextQuestionNumber;
+    children.push(simpleTable(questionTable.rows));
     children.push(new Paragraph({ children: [new PageBreak()] }));
   }
 
-  // Assessment summary placeholder
-  children.push(heading('Assessment Summary', HeadingLevel.HEADING_1));
+  return children;
+}
+
+function buildDocxSummarySection(domains) {
+  const children = [
+    heading('Assessment Summary', HeadingLevel.HEADING_1),
+  ];
   const summaryRows = [
     headerRow(['Domain', '# Questions', 'Score %', 'Rating', 'Notes']),
     ...domains.map((domain) => new TableRow({
@@ -446,12 +464,32 @@ function buildQuestionnaireDocx(config) {
     new TableRow({
       children: [
         boldCell('OVERALL'),
-        textCell(String(domains.reduce((sum, d) => sum + d.questions.length, 0))),
+        textCell(String(domains.reduce((sum, domain) => sum + domain.questions.length, 0))),
         textCell(''), textCell(''), textCell(''),
       ],
     }),
   ];
   children.push(simpleTable(summaryRows));
+  return children;
+}
+
+function buildQuestionnaireDocx(config) {
+  const { scoringConfiguration, classification, domains, weightTiers } = config;
+  const children = [
+    ...buildDocxTitleSection(scoringConfiguration),
+    heading('Instructions', HeadingLevel.HEADING_1),
+    paragraph(
+      'This questionnaire assesses the security posture of applications. ' +
+      'Each question maps to organizational policies and NIST CSF 2.0 subcategories. ' +
+      'For each question, select exactly one response. If not applicable, select "N/A" with justification.',
+    ),
+    ...buildDocxWeightTierTable(weightTiers),
+    ...buildDocxRatingScaleSection(),
+    ...buildDocxApplicationInfoSection(),
+    ...buildDocxClassificationSection(classification),
+    ...buildDocxDomainSections(domains),
+    ...buildDocxSummarySection(domains),
+  ];
 
   return new Document({
     sections: [{
@@ -487,29 +525,11 @@ function buildQuestionnaireDocx(config) {
 
 
 // ════════════════════════════════════════════════════════════════════
-// 4b. XLSX Questionnaire Builder
+// 4b. XLSX Questionnaire Builder (decomposed)
 // ════════════════════════════════════════════════════════════════════
 
-function buildQuestionnaireXlsx(config) {
-  const { scoringConfiguration, classification, domains, weightTiers } = config;
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'ASR Export';
-  workbook.created = new Date();
-
-  const tierValueMap = {};
-  for (const tier of weightTiers) {
-    tierValueMap[tier.name || tier.tierName] = tier.value;
-  }
-
-  // ── Instructions Sheet ──────────────────────────────────────────
-  const instructionsSheet = workbook.addWorksheet('Instructions', { properties: { tabColor: { argb: RESCOR_GREEN } } });
-  instructionsSheet.getColumn(1).width = 100;
-  instructionsSheet.getCell('A1').value = 'Application Security Review — Questionnaire';
-  instructionsSheet.getCell('A1').font = { bold: true, size: 18, color: { argb: `FF${RESCOR_GREEN}` } };
-  instructionsSheet.getCell('A3').value = 'Interactive Excel workbook with live risk scoring.';
-  instructionsSheet.getCell('A3').font = { bold: true, size: 12, color: { argb: `FF${RESCOR_BLUE}` } };
-
-  const instructionLines = [
+function buildXlsxInstructionLines(weightTiers) {
+  const lines = [
     '', 'HOW TO COMPLETE',
     '1. Go to the Questionnaire tab.',
     '2. FIRST answer the Risk Classification question at the top — this sets the global multiplier.',
@@ -521,29 +541,37 @@ function buildQuestionnaireXlsx(config) {
     '', 'WEIGHT TIERS',
   ];
   for (const tier of weightTiers) {
-    instructionLines.push(`  ${tier.name || tier.tierName}: ${tier.value}`);
+    lines.push(`  ${tier.name || tier.tierName}: ${tier.value}`);
   }
-  instructionLines.push('', 'RISK RATING SCALE');
-  instructionLines.push('  0–25%  Low      — Strong posture');
-  instructionLines.push('  26–50% Moderate — Adequate, minor gaps');
-  instructionLines.push('  51–75% Elevated — Material gaps');
-  instructionLines.push('  76–100% Critical — Fundamental gaps');
-  instructionLines.push('', `Generated: ${new Date().toISOString().slice(0, 10)}`);
+  lines.push('', 'RISK RATING SCALE');
+  lines.push('  0–25%  Low      — Strong posture');
+  lines.push('  26–50% Moderate — Adequate, minor gaps');
+  lines.push('  51–75% Elevated — Material gaps');
+  lines.push('  76–100% Critical — Fundamental gaps');
+  lines.push('', `Generated: ${new Date().toISOString().slice(0, 10)}`);
+  return lines;
+}
 
+function buildXlsxInstructionsSheet(workbook, weightTiers, scoringConfiguration) {
+  const instructionsSheet = workbook.addWorksheet('Instructions', { properties: { tabColor: { argb: RESCOR_GREEN } } });
+  instructionsSheet.getColumn(1).width = 100;
+  instructionsSheet.getCell('A1').value = 'Application Security Review — Questionnaire';
+  instructionsSheet.getCell('A1').font = { bold: true, size: 18, color: { argb: `FF${RESCOR_GREEN}` } };
+  instructionsSheet.getCell('A3').value = 'Interactive Excel workbook with live risk scoring.';
+  instructionsSheet.getCell('A3').font = { bold: true, size: 12, color: { argb: `FF${RESCOR_BLUE}` } };
+
+  const instructionLines = buildXlsxInstructionLines(weightTiers);
   let instructionRow = 5;
   for (const line of instructionLines) {
     instructionsSheet.getCell(`A${instructionRow}`).value = line;
     instructionRow++;
   }
   instructionsSheet.state = 'visible';
+  return instructionsSheet;
+}
 
-  // ── Questionnaire Sheet ─────────────────────────────────────────
-  const questionnaireSheet = workbook.addWorksheet('Questionnaire', {
-    properties: { tabColor: { argb: RESCOR_BLUE } },
-    pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
-  });
-
-  const columnDefs = [
+function buildXlsxQuestionnaireColumns() {
+  const columns = [
     { header: '#', key: 'num', width: 5 },
     { header: 'Domain', key: 'domain', width: 28 },
     { header: 'Question', key: 'question', width: 58 },
@@ -553,141 +581,127 @@ function buildQuestionnaireXlsx(config) {
     { header: 'Notes', key: 'notes', width: 32 },
     { header: 'ClassFactor', key: 'classFactor', width: 1, hidden: true },
   ];
-  questionnaireSheet.columns = columnDefs;
+  return columns;
+}
 
-  // Style header row
-  const headerRowExcel = questionnaireSheet.getRow(1);
-  headerRowExcel.font = { bold: true, size: 11, color: { argb: `FF${WHITE}` } };
-  headerRowExcel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF37474F' } };
-  headerRowExcel.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-
-  // Row 2: Classification question
+function buildXlsxClassificationRow(sheet, classification) {
   const classRow = 2;
-  questionnaireSheet.getCell(`A${classRow}`).value = '★';
-  questionnaireSheet.getCell(`A${classRow}`).font = { bold: true, size: 12, color: { argb: `FF${GAP_RED}` } };
-  questionnaireSheet.getCell(`A${classRow}`).alignment = { horizontal: 'center' };
-  questionnaireSheet.mergeCells(`B${classRow}:C${classRow}`);
-  questionnaireSheet.getCell(`B${classRow}`).value = classification.text;
-  questionnaireSheet.getCell(`B${classRow}`).font = { bold: true, size: 11, color: { argb: `FF${GAP_RED}` } };
-  questionnaireSheet.getCell(`D${classRow}`).value = 'Global';
-  questionnaireSheet.getCell(`D${classRow}`).font = { bold: true, size: 9, color: { argb: `FF${GAP_RED}` } };
-  questionnaireSheet.getCell(`D${classRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFCDD2' } };
+  sheet.getCell(`A${classRow}`).value = '★';
+  sheet.getCell(`A${classRow}`).font = { bold: true, size: 12, color: { argb: `FF${GAP_RED}` } };
+  sheet.getCell(`A${classRow}`).alignment = { horizontal: 'center' };
+  sheet.mergeCells(`B${classRow}:C${classRow}`);
+  sheet.getCell(`B${classRow}`).value = classification.text;
+  sheet.getCell(`B${classRow}`).font = { bold: true, size: 11, color: { argb: `FF${GAP_RED}` } };
+  sheet.getCell(`D${classRow}`).value = 'Global';
+  sheet.getCell(`D${classRow}`).font = { bold: true, size: 9, color: { argb: `FF${GAP_RED}` } };
+  sheet.getCell(`D${classRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFCDD2' } };
 
-  // Classification dropdown in E2
   const classChoiceTexts = classification.choices.map((choice) => choice.text);
-  questionnaireSheet.getCell(`E${classRow}`).dataValidation = {
+  sheet.getCell(`E${classRow}`).dataValidation = {
     type: 'list',
     formulae: [`"${classChoiceTexts.join(',')}"`],
     showErrorMessage: true,
     errorTitle: 'Invalid Classification',
     error: 'Please select a risk classification.',
   };
-  questionnaireSheet.getCell(`E${classRow}`).fill = {
+  sheet.getCell(`E${classRow}`).fill = {
     type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFDE7' },
   };
 
-  // F2: Classification factor formula (nested IF)
   let classFactorExpression = '0';
   for (let index = classification.choices.length - 1; index >= 0; index--) {
     const choice = classification.choices[index];
     const escapedText = choice.text.replace(/"/g, '""');
     classFactorExpression = `IF(E2="${escapedText}",${choice.factor},${classFactorExpression})`;
   }
-  questionnaireSheet.getCell(`F${classRow}`).value = { formula: classFactorExpression };
-  questionnaireSheet.getCell(`H${classRow}`).value = { formula: 'F2' };
+  sheet.getCell(`F${classRow}`).value = { formula: classFactorExpression };
+  sheet.getCell(`H${classRow}`).value = { formula: 'F2' };
 
-  // Tint row 2
   const classRowFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EAF6' } };
   for (let column = 1; column <= 8; column++) {
-    questionnaireSheet.getCell(classRow, column).fill = classRowFill;
+    sheet.getCell(classRow, column).fill = classRowFill;
+  }
+}
+
+function buildXlsxQuestionRow(sheet, currentRow, question, questionNumber, domain, questionIndex, tierValueMap, domainFill) {
+  const weightValue = tierValueMap[question.weightTier] || 0;
+
+  sheet.getCell(`A${currentRow}`).value = questionNumber;
+  sheet.getCell(`A${currentRow}`).font = { bold: true, size: 10 };
+  sheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center' };
+
+  if (questionIndex === 0) {
+    sheet.getCell(`B${currentRow}`).value = domain.name;
+    sheet.getCell(`B${currentRow}`).font = { bold: true, size: 10, color: { argb: `FF${RESCOR_BLUE}` } };
+    sheet.getCell(`B${currentRow}`).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
   }
 
-  questionnaireSheet.views = [{ state: 'frozen', ySplit: 2, xSplit: 0 }];
+  sheet.getCell(`C${currentRow}`).value = question.text;
+  sheet.getCell(`C${currentRow}`).alignment = { wrapText: true, vertical: 'top' };
 
-  // ── Domain question rows (start at row 3) ──────────────────────
+  sheet.getCell(`D${currentRow}`).value = question.weightTier;
+  sheet.getCell(`D${currentRow}`).font = { bold: true, size: 9 };
+  sheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center' };
+  const weightFillColor = WEIGHT_FILLS[question.weightTier] || INFO_BG;
+  sheet.getCell(`D${currentRow}`).fill = {
+    type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${weightFillColor}` },
+  };
+
+  const choiceTexts = [...(question.choices || []), 'N/A'];
+  sheet.getCell(`E${currentRow}`).dataValidation = {
+    type: 'list',
+    formulae: [`"${choiceTexts.join(',')}"`],
+    showErrorMessage: true,
+    errorTitle: `Q${questionNumber}`,
+    error: 'Please select a valid answer.',
+  };
+  sheet.getCell(`E${currentRow}`).fill = {
+    type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFDE7' },
+  };
+  sheet.getCell(`E${currentRow}`).alignment = { wrapText: true };
+
+  const scores = [...(question.choiceScores || []), question.naScore ?? 1];
+  let measurementExpression = String(scores[scores.length - 1]);
+  for (let scoreIndex = scores.length - 2; scoreIndex >= 0; scoreIndex--) {
+    const escapedChoice = choiceTexts[scoreIndex].replace(/"/g, '""');
+    measurementExpression = `IF(E${currentRow}="${escapedChoice}",${scores[scoreIndex]},${measurementExpression})`;
+  }
+  const formula = `IF(E${currentRow}="",0,INT(${measurementExpression}/100*${weightValue}/100*$H$2))`;
+  sheet.getCell(`F${currentRow}`).value = { formula };
+  sheet.getCell(`F${currentRow}`).numFmt = '0';
+  sheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center' };
+
+  sheet.getCell(`G${currentRow}`).alignment = { wrapText: true };
+
+  for (const column of ['A', 'B', 'C', 'G']) {
+    sheet.getCell(`${column}${currentRow}`).fill = domainFill;
+  }
+
+  sheet.getRow(currentRow).height = 32;
+}
+
+function buildXlsxDomainRows(sheet, domains, tierValueMap) {
   let currentRow = 3;
   let questionNumber = 0;
   const domainRanges = [];
 
-  for (let domainIdx = 0; domainIdx < domains.length; domainIdx++) {
-    const domain = domains[domainIdx];
+  for (let domainIndex = 0; domainIndex < domains.length; domainIndex++) {
+    const domain = domains[domainIndex];
     const startRow = currentRow;
-    const domainFillColor = DOMAIN_FILLS[domainIdx % DOMAIN_FILLS.length];
+    const domainFillColor = DOMAIN_FILLS[domainIndex % DOMAIN_FILLS.length];
     const domainFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${domainFillColor}` } };
 
-    for (let questionIdx = 0; questionIdx < domain.questions.length; questionIdx++) {
-      const question = domain.questions[questionIdx];
+    for (let questionIndex = 0; questionIndex < domain.questions.length; questionIndex++) {
+      const question = domain.questions[questionIndex];
       questionNumber++;
-      const weightValue = tierValueMap[question.weightTier] || 0;
-
-      // Column A: question number
-      questionnaireSheet.getCell(`A${currentRow}`).value = questionNumber;
-      questionnaireSheet.getCell(`A${currentRow}`).font = { bold: true, size: 10 };
-      questionnaireSheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center' };
-
-      // Column B: domain name (first question only)
-      if (questionIdx === 0) {
-        questionnaireSheet.getCell(`B${currentRow}`).value = domain.name;
-        questionnaireSheet.getCell(`B${currentRow}`).font = { bold: true, size: 10, color: { argb: `FF${RESCOR_BLUE}` } };
-        questionnaireSheet.getCell(`B${currentRow}`).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      }
-
-      // Column C: question text
-      questionnaireSheet.getCell(`C${currentRow}`).value = question.text;
-      questionnaireSheet.getCell(`C${currentRow}`).alignment = { wrapText: true, vertical: 'top' };
-
-      // Column D: weight tier
-      questionnaireSheet.getCell(`D${currentRow}`).value = question.weightTier;
-      questionnaireSheet.getCell(`D${currentRow}`).font = { bold: true, size: 9 };
-      questionnaireSheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center' };
-      const weightFillColor = WEIGHT_FILLS[question.weightTier] || INFO_BG;
-      questionnaireSheet.getCell(`D${currentRow}`).fill = {
-        type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${weightFillColor}` },
-      };
-
-      // Column E: answer dropdown
-      const choiceTexts = [...(question.choices || []), 'N/A'];
-      questionnaireSheet.getCell(`E${currentRow}`).dataValidation = {
-        type: 'list',
-        formulae: [`"${choiceTexts.join(',')}"`],
-        showErrorMessage: true,
-        errorTitle: `Q${questionNumber}`,
-        error: 'Please select a valid answer.',
-      };
-      questionnaireSheet.getCell(`E${currentRow}`).fill = {
-        type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFDE7' },
-      };
-      questionnaireSheet.getCell(`E${currentRow}`).alignment = { wrapText: true };
-
-      // Column F: measurement formula
-      const scores = [...(question.choiceScores || []), question.naScore ?? 1];
-      let measurementExpression = String(scores[scores.length - 1]);
-      for (let scoreIndex = scores.length - 2; scoreIndex >= 0; scoreIndex--) {
-        const escapedChoice = choiceTexts[scoreIndex].replace(/"/g, '""');
-        measurementExpression = `IF(E${currentRow}="${escapedChoice}",${scores[scoreIndex]},${measurementExpression})`;
-      }
-      const formula = `IF(E${currentRow}="",0,INT(${measurementExpression}/100*${weightValue}/100*$H$2))`;
-      questionnaireSheet.getCell(`F${currentRow}`).value = { formula };
-      questionnaireSheet.getCell(`F${currentRow}`).numFmt = '0';
-      questionnaireSheet.getCell(`F${currentRow}`).alignment = { horizontal: 'center' };
-
-      // Column G: notes
-      questionnaireSheet.getCell(`G${currentRow}`).alignment = { wrapText: true };
-
-      // Domain tint on A, B, C, G
-      for (const column of ['A', 'B', 'C', 'G']) {
-        questionnaireSheet.getCell(`${column}${currentRow}`).fill = domainFill;
-      }
-
-      questionnaireSheet.getRow(currentRow).height = 32;
+      buildXlsxQuestionRow(sheet, currentRow, question, questionNumber, domain, questionIndex, tierValueMap, domainFill);
       currentRow++;
     }
 
     const endRow = currentRow - 1;
 
-    // Merge domain name cells vertically
     if (domain.questions.length > 1) {
-      questionnaireSheet.mergeCells(`B${startRow}:B${endRow}`);
+      sheet.mergeCells(`B${startRow}:B${endRow}`);
     }
 
     domainRanges.push({
@@ -700,27 +714,23 @@ function buildQuestionnaireXlsx(config) {
     });
   }
 
-  const lastQuestionRow = currentRow - 1;
+  return { domainRanges, lastQuestionRow: currentRow - 1 };
+}
 
-  // Lock structure: only E (answer) and G (notes) unlocked
-  questionnaireSheet.protect('', {
+function buildXlsxSheetProtection(sheet, lastQuestionRow) {
+  sheet.protect('', {
     selectLockedCells: true,
     selectUnlockedCells: true,
     formatColumns: false,
     formatRows: false,
   });
-  // Mark answer and notes columns as unlocked
   for (let row = 2; row <= lastQuestionRow; row++) {
-    questionnaireSheet.getCell(`E${row}`).protection = { locked: false };
-    questionnaireSheet.getCell(`G${row}`).protection = { locked: false };
+    sheet.getCell(`E${row}`).protection = { locked: false };
+    sheet.getCell(`G${row}`).protection = { locked: false };
   }
+}
 
-  // ── Summary Sheet ───────────────────────────────────────────────
-  const summarySheet = workbook.addWorksheet('Summary', {
-    properties: { tabColor: { argb: GAP_RED } },
-    pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
-  });
-
+function buildXlsxSummaryHeader(summarySheet) {
   summarySheet.getColumn(1).width = 36;
   summarySheet.getColumn(2).width = 8;
   summarySheet.getColumn(3).width = 10;
@@ -737,17 +747,18 @@ function buildQuestionnaireXlsx(config) {
   summarySheet.getCell('A2').value = `Generated ${new Date().toISOString().slice(0, 10)}`;
   summarySheet.getCell('A2').font = { italic: true, size: 10, color: { argb: `FF${RESCOR_GRAY}` } };
   summarySheet.getCell('A2').alignment = { horizontal: 'center' };
+}
 
-  // Answered count
+function buildXlsxSummaryAnsweredRow(summarySheet, lastQuestionRow, domains) {
   summarySheet.getCell('A4').value = 'Questions Answered:';
   summarySheet.getCell('A4').font = { bold: true };
   summarySheet.getCell('B4').value = { formula: `COUNTIF(Questionnaire!$F$3:$F$${lastQuestionRow},">0")` };
   summarySheet.getCell('C4').value = 'of';
   summarySheet.getCell('C4').font = { color: { argb: `FF${RESCOR_GRAY}` } };
-  summarySheet.getCell('D4').value = domains.reduce((sum, d) => sum + d.questions.length, 0);
+  summarySheet.getCell('D4').value = domains.reduce((sum, domain) => sum + domain.questions.length, 0);
+}
 
-  // Summary headers
-  const summaryHeaderRow = 6;
+function buildXlsxSummaryHeaderRow(summarySheet, summaryHeaderRow) {
   const summaryHeaders = ['Domain', '# Q', 'Answered', 'Residual Risk (0–100)', 'Rating', 'Policy / CSF References'];
   summaryHeaders.forEach((text, index) => {
     const cell = summarySheet.getCell(summaryHeaderRow, index + 1);
@@ -756,51 +767,42 @@ function buildQuestionnaireXlsx(config) {
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF37474F' } };
     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
   });
+}
 
-  // Domain rows
-  const dampingFactor = scoringConfiguration.dampingFactor || 4;
-  const rawMax = scoringConfiguration.rawMax || 134;
+function buildXlsxSummaryDomainRow(summarySheet, row, range, index, dampingFactor, rawMax) {
+  const domainFillColor = DOMAIN_FILLS[index % DOMAIN_FILLS.length];
 
-  for (let index = 0; index < domainRanges.length; index++) {
-    const range = domainRanges[index];
-    const row = summaryHeaderRow + 1 + index;
-    const domainFillColor = DOMAIN_FILLS[index % DOMAIN_FILLS.length];
+  summarySheet.getCell(row, 1).value = range.name;
+  summarySheet.getCell(row, 1).font = { bold: true, size: 10 };
+  summarySheet.getCell(row, 2).value = range.questionCount;
+  summarySheet.getCell(row, 2).alignment = { horizontal: 'center' };
 
-    summarySheet.getCell(row, 1).value = range.name;
-    summarySheet.getCell(row, 1).font = { bold: true, size: 10 };
-    summarySheet.getCell(row, 2).value = range.questionCount;
-    summarySheet.getCell(row, 2).alignment = { horizontal: 'center' };
+  const measurementRange = `Questionnaire!$F$${range.startRow}:$F$${range.endRow}`;
+  summarySheet.getCell(row, 3).value = { formula: `COUNTIF(${measurementRange},">0")` };
+  summarySheet.getCell(row, 3).alignment = { horizontal: 'center' };
 
-    const measurementRange = `Questionnaire!$F$${range.startRow}:$F$${range.endRow}`;
-    summarySheet.getCell(row, 3).value = { formula: `COUNTIF(${measurementRange},">0")` };
-    summarySheet.getCell(row, 3).alignment = { horizontal: 'center' };
+  const rskTerms = buildRskFormulaTerms(measurementRange, range.questionCount, dampingFactor);
+  const rskFormula = `IF(SUM(${measurementRange})=0,0,MIN(100,ROUND(CEILING(${rskTerms},1)/${rawMax}*100,1)))`;
+  summarySheet.getCell(row, 4).value = { formula: rskFormula };
+  summarySheet.getCell(row, 4).numFmt = '0.0';
+  summarySheet.getCell(row, 4).alignment = { horizontal: 'center' };
 
-    // RSK aggregate normalized: MIN(100, ROUND(CEILING(sum LARGE/4^j, 1) / rawMax * 100, 1))
-    const rskTerms = buildRskFormulaTerms(measurementRange, range.questionCount, dampingFactor);
-    const rskFormula = `IF(SUM(${measurementRange})=0,0,MIN(100,ROUND(CEILING(${rskTerms},1)/${rawMax}*100,1)))`;
-    summarySheet.getCell(row, 4).value = { formula: rskFormula };
-    summarySheet.getCell(row, 4).numFmt = '0.0';
-    summarySheet.getCell(row, 4).alignment = { horizontal: 'center' };
+  const ratingFormula = `IF(D${row}=0,"",IF(D${row}<=25,"Low",IF(D${row}<=50,"Moderate",IF(D${row}<=75,"Elevated","Critical"))))`;
+  summarySheet.getCell(row, 5).value = { formula: ratingFormula };
+  summarySheet.getCell(row, 5).alignment = { horizontal: 'center' };
 
-    // Rating formula
-    const ratingFormula = `IF(D${row}=0,"",IF(D${row}<=25,"Low",IF(D${row}<=50,"Moderate",IF(D${row}<=75,"Elevated","Critical"))))`;
-    summarySheet.getCell(row, 5).value = { formula: ratingFormula };
-    summarySheet.getCell(row, 5).alignment = { horizontal: 'center' };
+  summarySheet.getCell(row, 6).value = `${range.policyRefs}  |  ${range.csfRefs}`;
+  summarySheet.getCell(row, 6).font = { size: 9, color: { argb: `FF${RESCOR_GRAY}` } };
 
-    summarySheet.getCell(row, 6).value = `${range.policyRefs}  |  ${range.csfRefs}`;
-    summarySheet.getCell(row, 6).font = { size: 9, color: { argb: `FF${RESCOR_GRAY}` } };
-
-    // Domain fill
-    for (let column = 1; column <= 6; column++) {
-      summarySheet.getCell(row, column).fill = {
-        type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${domainFillColor}` },
-      };
-    }
+  for (let column = 1; column <= 6; column++) {
+    summarySheet.getCell(row, column).fill = {
+      type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${domainFillColor}` },
+    };
   }
+}
 
-  // Overall row
-  const overallRow = summaryHeaderRow + 1 + domainRanges.length;
-  const totalQuestions = domains.reduce((sum, d) => sum + d.questions.length, 0);
+function buildXlsxSummaryOverallRow(summarySheet, overallRow, domains, lastQuestionRow, dampingFactor, rawMax) {
+  const totalQuestions = domains.reduce((sum, domain) => sum + domain.questions.length, 0);
   const allMeasurements = `Questionnaire!$F$3:$F$${lastQuestionRow}`;
 
   summarySheet.getCell(overallRow, 1).value = 'OVERALL';
@@ -820,13 +822,36 @@ function buildQuestionnaireXlsx(config) {
   summarySheet.getCell(overallRow, 5).value = { formula: overallRatingFormula };
   summarySheet.getCell(overallRow, 5).alignment = { horizontal: 'center' };
 
-  // Overall row styling
   const overallFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF9C4' } };
   for (let column = 1; column <= 6; column++) {
     summarySheet.getCell(overallRow, column).fill = overallFill;
   }
+}
 
-  // Conditional formatting for rating column
+function buildXlsxSummarySheet(workbook, domainRanges, domains, scoringConfiguration, lastQuestionRow) {
+  const summarySheet = workbook.addWorksheet('Summary', {
+    properties: { tabColor: { argb: GAP_RED } },
+    pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
+  });
+
+  buildXlsxSummaryHeader(summarySheet);
+  buildXlsxSummaryAnsweredRow(summarySheet, lastQuestionRow, domains);
+
+  const summaryHeaderRow = 6;
+  buildXlsxSummaryHeaderRow(summarySheet, summaryHeaderRow);
+
+  const dampingFactor = scoringConfiguration.dampingFactor || 4;
+  const rawMax = scoringConfiguration.rawMax || 134;
+
+  for (let index = 0; index < domainRanges.length; index++) {
+    const range = domainRanges[index];
+    const row = summaryHeaderRow + 1 + index;
+    buildXlsxSummaryDomainRow(summarySheet, row, range, index, dampingFactor, rawMax);
+  }
+
+  const overallRow = summaryHeaderRow + 1 + domainRanges.length;
+  buildXlsxSummaryOverallRow(summarySheet, overallRow, domains, lastQuestionRow, dampingFactor, rawMax);
+
   addRatingConditionalFormatting(summarySheet, summaryHeaderRow + 1, overallRow, 5);
 
   summarySheet.protect('', {
@@ -834,9 +859,15 @@ function buildQuestionnaireXlsx(config) {
     selectUnlockedCells: true,
   });
 
-  // ── Scoring Model Sheet ─────────────────────────────────────────
+  return summarySheet;
+}
+
+function buildXlsxScoringModelSheet(workbook, scoringConfiguration) {
   const scoringSheet = workbook.addWorksheet('Scoring Model', { properties: { tabColor: { argb: RESCOR_GRAY } } });
   scoringSheet.getColumn(1).width = 90;
+
+  const dampingFactor = scoringConfiguration.dampingFactor || 4;
+  const rawMax = scoringConfiguration.rawMax || 134;
 
   const scoringLines = [
     { text: 'ASR Scoring Model — Reference', font: { bold: true, size: 18, color: { argb: `FF${RESCOR_GREEN}` } } },
@@ -867,6 +898,42 @@ function buildQuestionnaireXlsx(config) {
       cell.alignment = { wrapText: true, vertical: 'top' };
     }
   });
+
+  return scoringSheet;
+}
+
+function buildQuestionnaireXlsx(config) {
+  const { scoringConfiguration, classification, domains, weightTiers } = config;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'ASR Export';
+  workbook.created = new Date();
+
+  const tierValueMap = {};
+  for (const tier of weightTiers) {
+    tierValueMap[tier.name || tier.tierName] = tier.value;
+  }
+
+  buildXlsxInstructionsSheet(workbook, weightTiers, scoringConfiguration);
+
+  const questionnaireSheet = workbook.addWorksheet('Questionnaire', {
+    properties: { tabColor: { argb: RESCOR_BLUE } },
+    pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+  });
+
+  questionnaireSheet.columns = buildXlsxQuestionnaireColumns();
+
+  const headerRowExcel = questionnaireSheet.getRow(1);
+  headerRowExcel.font = { bold: true, size: 11, color: { argb: `FF${WHITE}` } };
+  headerRowExcel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF37474F' } };
+  headerRowExcel.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+  buildXlsxClassificationRow(questionnaireSheet, classification);
+  questionnaireSheet.views = [{ state: 'frozen', ySplit: 2, xSplit: 0 }];
+
+  const { domainRanges, lastQuestionRow } = buildXlsxDomainRows(questionnaireSheet, domains, tierValueMap);
+  buildXlsxSheetProtection(questionnaireSheet, lastQuestionRow);
+  buildXlsxSummarySheet(workbook, domainRanges, domains, scoringConfiguration, lastQuestionRow);
+  buildXlsxScoringModelSheet(workbook, scoringConfiguration);
 
   return workbook;
 }
@@ -914,16 +981,11 @@ function addRatingConditionalFormatting(sheet, startRow, endRow, column) {
 
 
 // ════════════════════════════════════════════════════════════════════
-// 4c. Review Report DOCX Builder
+// 4c. Review Report DOCX Builder (decomposed)
 // ════════════════════════════════════════════════════════════════════
 
-async function buildReviewReportDocx(reviewData, config, stormService) {
-  const { review, answers, remediations, gates } = reviewData;
-  const { scoringConfiguration, domains } = config;
-  const children = [];
-
-  // Title page
-  children.push(
+function buildReportTitleSection(review, scoringConfiguration) {
+  const children = [
     new Paragraph({
       children: [new TextRun({ text: 'Application Security Review', bold: true, size: 48, color: RESCOR_GREEN })],
       alignment: AlignmentType.CENTER,
@@ -947,10 +1009,14 @@ async function buildReviewReportDocx(reviewData, config, stormService) {
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 },
     }),
-  );
+  ];
+  return children;
+}
 
-  // Executive summary
-  children.push(heading('Executive Summary', HeadingLevel.HEADING_1));
+function buildReportScoringTable(review) {
+  const children = [
+    heading('Executive Summary', HeadingLevel.HEADING_1),
+  ];
   const summaryRows = [
     headerRow(['Metric', 'Value']),
     metricRow('Application', review.applicationName || 'N/A'),
@@ -965,9 +1031,13 @@ async function buildReviewReportDocx(reviewData, config, stormService) {
     metricRow('Questionnaire Version', review.questionnaireVersion || 'N/A'),
   ];
   children.push(simpleTable(summaryRows));
+  return children;
+}
 
-  // Gate attestation summary
+function buildReportGateSection(gates) {
   const answeredGates = gates.filter((gate) => gate.choiceIndex != null);
+  const children = [];
+
   if (answeredGates.length > 0) {
     children.push(new Paragraph({ children: [new PageBreak()] }));
     children.push(heading('Preliminary Attestations', HeadingLevel.HEADING_1));
@@ -991,127 +1061,156 @@ async function buildReviewReportDocx(reviewData, config, stormService) {
     children.push(simpleTable(gateRows));
   }
 
-  // Domain-by-domain results
-  children.push(new Paragraph({ children: [new PageBreak()] }));
-  children.push(heading('Domain Results', HeadingLevel.HEADING_1));
+  return children;
+}
 
-  // Build answer lookup
+function buildReportAnswerMap(answers) {
   const answerMap = new Map();
   for (const item of answers) {
     const answer = item.answer || {};
     const key = `${answer.domainIndex}:${answer.questionIndex}`;
     answerMap.set(key, answer);
   }
+  return answerMap;
+}
 
+function buildReportDomainAnswerTable(domain, answerMap) {
+  const domainAnswerRows = [headerRow(['#', 'Question', 'Answer', 'Weight', 'Measurement', 'Notes'])];
+  const domainMeasurements = [];
+  let answeredCount = 0;
+
+  for (let questionIndex = 0; questionIndex < domain.questions.length; questionIndex++) {
+    const question = domain.questions[questionIndex];
+    const key = `${domain.domainIndex}:${question.questionIndex}`;
+    const answer = answerMap.get(key);
+
+    if (answer) {
+      answeredCount++;
+      const measurement = answer.measurement ?? 0;
+      domainMeasurements.push(measurement);
+      domainAnswerRows.push(new TableRow({
+        children: [
+          textCell(`Q${question.questionIndex + 1}`),
+          textCell(question.text),
+          textCell(answer.choiceText || 'N/A'),
+          textCell(question.weightTier),
+          measurement > 25
+            ? shadedCell(String(measurement), CRIT_BG)
+            : textCell(String(measurement)),
+          textCell(answer.notes || ''),
+        ],
+      }));
+    }
+  }
+
+  return { rows: domainAnswerRows, measurements: domainMeasurements, answeredCount };
+}
+
+async function buildReportDomainSections(answers, domains, scoringConfiguration, stormService) {
+  const children = [
+    new Paragraph({ children: [new PageBreak()] }),
+    heading('Domain Results', HeadingLevel.HEADING_1),
+  ];
+  const answerMap = buildReportAnswerMap(answers);
   const domainSummaryRows = [headerRow(['Domain', '# Answered', 'RSK Raw', 'Normalized', 'Rating'])];
 
   for (const domain of domains) {
-    const domainMeasurements = [];
-    const domainAnswerRows = [headerRow(['#', 'Question', 'Answer', 'Weight', 'Measurement', 'Notes'])];
-    let answeredCount = 0;
-
-    for (let questionIndex = 0; questionIndex < domain.questions.length; questionIndex++) {
-      const question = domain.questions[questionIndex];
-      const key = `${domain.domainIndex}:${question.questionIndex}`;
-      const answer = answerMap.get(key);
-
-      if (answer) {
-        answeredCount++;
-        const measurement = answer.measurement ?? 0;
-        domainMeasurements.push(measurement);
-        domainAnswerRows.push(new TableRow({
-          children: [
-            textCell(`Q${question.questionIndex + 1}`),
-            textCell(question.text),
-            textCell(answer.choiceText || 'N/A'),
-            textCell(question.weightTier),
-            measurement > 25
-              ? shadedCell(String(measurement), CRIT_BG)
-              : textCell(String(measurement)),
-            textCell(answer.notes || ''),
-          ],
-        }));
-      }
-    }
-
-    const domainScore = await stormService.computeScore(domainMeasurements, scoringConfiguration);
+    const domainData = buildReportDomainAnswerTable(domain, answerMap);
+    const domainScore = await stormService.computeScore(domainData.measurements, scoringConfiguration);
 
     domainSummaryRows.push(new TableRow({
       children: [
         boldCell(`${domain.domainIndex}: ${domain.name}`),
-        textCell(`${answeredCount} / ${domain.questions.length}`),
+        textCell(`${domainData.answeredCount} / ${domain.questions.length}`),
         textCell(String(domainScore.raw)),
         textCell(`${domainScore.normalized}%`),
         shadedCell(domainScore.rating, RATING_FILLS[domainScore.rating] || 'FFFFFF'),
       ],
     }));
 
-    // Per-domain detail section
     children.push(heading(`Domain ${domain.domainIndex}: ${domain.name}`, HeadingLevel.HEADING_2));
     children.push(paragraph(
-      `Score: ${domainScore.normalized}% (${domainScore.rating})  |  Answered: ${answeredCount}/${domain.questions.length}`,
+      `Score: ${domainScore.normalized}% (${domainScore.rating})  |  Answered: ${domainData.answeredCount}/${domain.questions.length}`,
       { bold: true },
     ));
-    if (answeredCount > 0) {
-      children.push(simpleTable(domainAnswerRows));
+    if (domainData.answeredCount > 0) {
+      children.push(simpleTable(domainData.rows));
     } else {
       children.push(paragraph('No answers recorded for this domain.', { italics: true, color: RESCOR_GRAY }));
     }
   }
 
-  // Insert domain summary table at the top of domain results section
-  children.splice(
-    children.findIndex((child) =>
-      child instanceof Paragraph && child.root?.[1]?.root?.[0]?.root?.[1] === 'Domain Results',
-    ) + 1,
-    0,
-    simpleTable(domainSummaryRows),
-  );
+  // Insert domain summary table right after the "Domain Results" heading
+  children.splice(2, 0, simpleTable(domainSummaryRows));
 
-  // Remediation plan
+  return children;
+}
+
+function buildReportRemediationRows(remediations) {
+  const remediationRows = [
+    headerRow(['Question', 'Measurement', 'Action', 'Function', 'Status', 'Response Type', 'Mitigation %', 'Target Date']),
+  ];
+
+  for (const item of remediations) {
+    if (item.remediations.length === 0) {
+      remediationRows.push(new TableRow({
+        children: [
+          textCell(item.questionText),
+          shadedCell(String(item.measurement), CRIT_BG),
+          textCell('No remediation proposed'),
+          textCell(''), textCell('OPEN'), textCell(''), textCell('0'), textCell(''),
+        ],
+      }));
+    } else {
+      for (const remediation of item.remediations) {
+        remediationRows.push(new TableRow({
+          children: [
+            textCell(item.questionText),
+            shadedCell(String(item.measurement), CRIT_BG),
+            textCell(remediation.proposedAction),
+            textCell(remediation.assignedFunction),
+            textCell(remediation.status),
+            textCell(remediation.responseType),
+            textCell(String(remediation.mitigationPercent)),
+            textCell(remediation.targetDate),
+          ],
+        }));
+      }
+    }
+  }
+
+  return remediationRows;
+}
+
+function buildReportRemediationSection(remediations) {
+  const children = [];
+
   if (remediations.length > 0) {
     children.push(new Paragraph({ children: [new PageBreak()] }));
     children.push(heading('Remediation Plan (POAM)', HeadingLevel.HEADING_1));
     children.push(paragraph(
       `${remediations.length} question(s) with measurement > 25 RU requiring remediation attention.`,
     ));
-
-    const remediationRows = [
-      headerRow(['Question', 'Measurement', 'Action', 'Function', 'Status', 'Response Type', 'Mitigation %', 'Target Date']),
-    ];
-
-    for (const item of remediations) {
-      if (item.remediations.length === 0) {
-        remediationRows.push(new TableRow({
-          children: [
-            textCell(item.questionText),
-            shadedCell(String(item.measurement), CRIT_BG),
-            textCell('No remediation proposed'),
-            textCell(''), textCell('OPEN'), textCell(''), textCell('0'), textCell(''),
-          ],
-        }));
-      } else {
-        for (const remediation of item.remediations) {
-          remediationRows.push(new TableRow({
-            children: [
-              textCell(item.questionText),
-              shadedCell(String(item.measurement), CRIT_BG),
-              textCell(remediation.proposedAction),
-              textCell(remediation.assignedFunction),
-              textCell(remediation.status),
-              textCell(remediation.responseType),
-              textCell(String(remediation.mitigationPercent)),
-              textCell(remediation.targetDate),
-            ],
-          }));
-        }
-      }
-    }
-
-    children.push(simpleTable(remediationRows));
+    children.push(simpleTable(buildReportRemediationRows(remediations)));
   }
 
-  // Notes
+  return children;
+}
+
+async function buildReviewReportDocx(reviewData, config, stormService) {
+  const { review, answers, remediations, gates } = reviewData;
+  const { scoringConfiguration, domains } = config;
+
+  const domainSections = await buildReportDomainSections(answers, domains, scoringConfiguration, stormService);
+
+  const children = [
+    ...buildReportTitleSection(review, scoringConfiguration),
+    ...buildReportScoringTable(review),
+    ...buildReportGateSection(gates),
+    ...domainSections,
+    ...buildReportRemediationSection(remediations),
+  ];
+
   if (review.notes) {
     children.push(heading('Assessment Notes', HeadingLevel.HEADING_1));
     children.push(paragraph(review.notes));
