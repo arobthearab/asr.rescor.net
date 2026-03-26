@@ -7,13 +7,16 @@
 
 import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 // ── Auth endpoints — 20 requests per 15 minutes per IP ────────────
 // Applied to /api/auth/* before the authenticate middleware so that
 // brute-force token attempts are throttled at the network edge.
+// Disabled in development to avoid E2E test flakiness.
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: isDevelopment ? 10000 : 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many authentication requests, please try again later.' },
@@ -25,7 +28,7 @@ export const authLimiter = rateLimit({
 
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 300,
+  max: isDevelopment ? 10000 : 300,
   keyGenerator: (request) => request.user?.tenantId || ipKeyGenerator(request),
   standardHeaders: true,
   legacyHeaders: false,

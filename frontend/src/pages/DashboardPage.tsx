@@ -461,12 +461,12 @@ export default function DashboardPage() {
             </Button>
           )}
           <Tooltip title="Download Questionnaire (Word)">
-            <IconButton color="inherit" onClick={() => downloadQuestionnaireDocx()}>
+            <IconButton color="inherit" aria-label="Download Questionnaire (Word)" onClick={() => downloadQuestionnaireDocx()}>
               <DescriptionIcon />
             </IconButton>
           </Tooltip>
           <Tooltip title="Download Questionnaire (Excel)">
-            <IconButton color="inherit" onClick={() => downloadQuestionnaireXlsx()}>
+            <IconButton color="inherit" aria-label="Download Questionnaire (Excel)" onClick={() => downloadQuestionnaireXlsx()}>
               <TableChartIcon />
             </IconButton>
           </Tooltip>

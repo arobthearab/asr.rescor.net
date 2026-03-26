@@ -619,7 +619,7 @@ export default function ReviewPage() {
             {review.assessor} · {review.status}
           </Typography>
           <Tooltip title="Download Report (Word)">
-            <IconButton color="inherit" onClick={() => downloadReviewReport(reviewId, review.applicationName)}>
+            <IconButton color="inherit" aria-label="Download Report (Word)" onClick={() => downloadReviewReport(reviewId, review.applicationName)}>
               <DownloadIcon />
             </IconButton>
           </Tooltip>

@@ -142,7 +142,7 @@ export default function AdminUsersPage() {
     <Box>
       <AppBar position="static">
         <Toolbar>
-          <IconButton color="inherit" edge="start" onClick={() => navigate('/')} sx={{ mr: 1 }}>
+          <IconButton color="inherit" edge="start" aria-label="Back to dashboard" onClick={() => navigate('/')} sx={{ mr: 1 }}>
             <ArrowBackIcon />
           </IconButton>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>

@@ -12,7 +12,7 @@ export default defineConfig({
     ? [['html', { open: 'never' }], ['github']]
     : [['html', { open: 'on-failure' }]],
   use: {
-    baseURL: 'http://localhost:5174',
+    baseURL: 'http://localhost:5175',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     navigationTimeout: 60_000,
@@ -27,16 +27,16 @@ export default defineConfig({
     {
       command: 'npm run dev -w api',
       port: 3100,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 30_000,
       env: {
         NODE_ENV: 'development',
       },
     },
     {
-      command: 'VITE_DEV_BYPASS_AUTH=true npm run dev -w frontend',
-      port: 5174,
-      reuseExistingServer: !process.env.CI,
+      command: 'VITE_DEV_BYPASS_AUTH=true npm run dev -w frontend -- --port 5175',
+      port: 5175,
+      reuseExistingServer: false,
       timeout: 30_000,
     },
   ],
