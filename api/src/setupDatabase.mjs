@@ -86,22 +86,21 @@ async function runCypherFile(database, filePath, label) {
 // Explicit per-call parameter (CLI argument), not an env var.
 // Usage: node src/setupDatabase.mjs --overlay /path/to/overlay
 function discoverOverlayScripts() {
+  let overlayFiles = [];
   const overlayIndex = process.argv.indexOf('--overlay');
   const overlayDirectory = overlayIndex !== -1 ? process.argv[overlayIndex + 1] : undefined;
-  if (!overlayDirectory) {
-    return [];
-  }
 
-  const absoluteDirectory = resolve(overlayDirectory);
-  if (!existsSync(absoluteDirectory)) {
-    console.log(`  (overlay directory not found: ${absoluteDirectory})`);
-    return [];
+  if (overlayDirectory) {
+    const absoluteDirectory = resolve(overlayDirectory);
+    if (!existsSync(absoluteDirectory)) {
+      console.log(`  (overlay directory not found: ${absoluteDirectory})`);
+    } else {
+      overlayFiles = readdirSync(absoluteDirectory)
+        .filter((fileName) => fileName.endsWith('.cypher'))
+        .sort()
+        .map((fileName) => ({ fileName, filePath: resolve(absoluteDirectory, fileName) }));
+    }
   }
-
-  const overlayFiles = readdirSync(absoluteDirectory)
-    .filter((fileName) => fileName.endsWith('.cypher'))
-    .sort()
-    .map((fileName) => ({ fileName, filePath: resolve(absoluteDirectory, fileName) }));
 
   return overlayFiles;
 }
@@ -120,57 +119,55 @@ async function seedFromEnvironment(database) {
   const tenantDomain = process.env.SEED_TENANT_DOMAIN;
   const adminEmail = process.env.SEED_ADMIN_EMAIL;
 
-  if (!tenantId) {
-    return;
-  }
+  if (tenantId) {
+    console.log(`Seeding tenant from environment (${tenantId})...`);
 
-  console.log(`Seeding tenant from environment (${tenantId})...`);
-
-  await database.query(
-    `MERGE (t:Tenant {tenantId: $tenantId})
-       ON CREATE SET
-         t.name      = $name,
-         t.domain    = $domain,
-         t.createdAt = datetime(),
-         t.active    = true
-       ON MATCH SET
-         t.name      = $name,
-         t.domain    = $domain`,
-    {
-      tenantId,
-      name: tenantName || tenantId,
-      domain: tenantDomain || 'localhost',
-    }
-  );
-
-  console.log(`  ✓ Tenant "${tenantName || tenantId}" seeded`);
-
-  if (adminEmail) {
     await database.query(
-      `MERGE (u:User {email: $email})
+      `MERGE (t:Tenant {tenantId: $tenantId})
          ON CREATE SET
-           u.sub       = $sub,
-           u.username  = $email,
-           u.roles     = '["admin"]',
-           u.firstSeen = datetime(),
-           u.lastSeen  = datetime()
+           t.name      = $name,
+           t.domain    = $domain,
+           t.createdAt = datetime(),
+           t.active    = true
          ON MATCH SET
-           u.roles     = '["admin"]',
-           u.lastSeen  = datetime()`,
+           t.name      = $name,
+           t.domain    = $domain`,
       {
-        email: adminEmail,
-        sub: `pre-provisioned:${adminEmail}`,
+        tenantId,
+        name: tenantName || tenantId,
+        domain: tenantDomain || 'localhost',
       }
     );
 
-    await database.query(
-      `MATCH (u:User {email: $email})
-       MATCH (t:Tenant {tenantId: $tenantId})
-       MERGE (u)-[:BELONGS_TO]->(t)`,
-      { email: adminEmail, tenantId }
-    );
+    console.log(`  ✓ Tenant "${tenantName || tenantId}" seeded`);
 
-    console.log(`  ✓ Admin "${adminEmail}" seeded and linked to tenant`);
+    if (adminEmail) {
+      await database.query(
+        `MERGE (u:User {email: $email})
+           ON CREATE SET
+             u.sub       = $sub,
+             u.username  = $email,
+             u.roles     = '["admin"]',
+             u.firstSeen = datetime(),
+             u.lastSeen  = datetime()
+           ON MATCH SET
+             u.roles     = '["admin"]',
+             u.lastSeen  = datetime()`,
+        {
+          email: adminEmail,
+          sub: `pre-provisioned:${adminEmail}`,
+        }
+      );
+
+      await database.query(
+        `MATCH (u:User {email: $email})
+         MATCH (t:Tenant {tenantId: $tenantId})
+         MERGE (u)-[:BELONGS_TO]->(t)`,
+        { email: adminEmail, tenantId }
+      );
+
+      console.log(`  ✓ Admin "${adminEmail}" seeded and linked to tenant`);
+    }
   }
 }
 
@@ -188,23 +185,27 @@ async function bootstrapQuestionnaire(database) {
 
   if (questionnaireCount > 0) {
     console.log('  (questionnaire already exists — skipping bootstrap)');
-    return;
+  } else {
+    const questionCount = await database.query(
+      `MATCH (q:Question) WHERE q.active <> false RETURN count(q) AS total`
+    );
+    const totalQuestions = questionCount[0]?.total?.toNumber?.() ?? Number(questionCount[0]?.total ?? 0);
+
+    if (totalQuestions === 0) {
+      console.log('  (no questions in database — skipping questionnaire bootstrap)');
+    } else {
+      await createDefaultQuestionnaire(database, totalQuestions);
+    }
   }
+}
 
-  // Check for live questions
-  const questionCount = await database.query(
-    `MATCH (q:Question) WHERE q.active <> false RETURN count(q) AS total`
-  );
-  const totalQuestions = questionCount[0]?.total?.toNumber?.() ?? Number(questionCount[0]?.total ?? 0);
+// ────────────────────────────────────────────────────────────────────
+// createDefaultQuestionnaire — build and persist initial questionnaire
+// ────────────────────────────────────────────────────────────────────
 
-  if (totalQuestions === 0) {
-    console.log('  (no questions in database — skipping questionnaire bootstrap)');
-    return;
-  }
-
+async function createDefaultQuestionnaire(database, totalQuestions) {
   console.log(`Bootstrapping default Questionnaire from ${totalQuestions} live questions...`);
 
-  // Read domains + questions
   const domainsResult = await database.query(
     `MATCH (domain:Domain)
      WHERE domain.active <> false
@@ -244,7 +245,6 @@ async function bootstrapQuestionnaire(database) {
   const label = 'ASR Questionnaire';
   const now = new Date().toISOString();
 
-  // Create Questionnaire + Snapshot + wire them
   await database.query(
     `CREATE (q:Questionnaire {
        questionnaireId: $questionnaireId,

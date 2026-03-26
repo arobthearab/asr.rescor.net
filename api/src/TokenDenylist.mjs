@@ -28,31 +28,40 @@ export class TokenDenylist {
   }
 
   revokeToken(jti) {
-    if (!jti) return;
-    this.#deniedTokens.set(jti, Date.now() + this.ttlMs);
+    if (jti) {
+      this.#deniedTokens.set(jti, Date.now() + this.ttlMs);
+    }
   }
 
   revokeUser(sub) {
-    if (!sub) return;
-    this.#deniedUsers.set(sub, Date.now() + this.ttlMs);
+    if (sub) {
+      this.#deniedUsers.set(sub, Date.now() + this.ttlMs);
+    }
   }
 
   isDenied(jti, sub) {
+    let denied = false;
     const now = Date.now();
 
-    if (jti && this.#deniedTokens.has(jti)) {
+    if (!denied && jti && this.#deniedTokens.has(jti)) {
       const expiry = this.#deniedTokens.get(jti);
-      if (now < expiry) return true;
-      this.#deniedTokens.delete(jti);
+      if (now < expiry) {
+        denied = true;
+      } else {
+        this.#deniedTokens.delete(jti);
+      }
     }
 
-    if (sub && this.#deniedUsers.has(sub)) {
+    if (!denied && sub && this.#deniedUsers.has(sub)) {
       const expiry = this.#deniedUsers.get(sub);
-      if (now < expiry) return true;
-      this.#deniedUsers.delete(sub);
+      if (now < expiry) {
+        denied = true;
+      } else {
+        this.#deniedUsers.delete(sub);
+      }
     }
 
-    return false;
+    return denied;
   }
 
   get stats() {
