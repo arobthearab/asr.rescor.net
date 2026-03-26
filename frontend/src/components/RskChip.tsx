@@ -95,15 +95,11 @@ export default function RskChip({
     </Box>
   );
 
-  if (tooltip) {
-    return (
-      <Tooltip title={tooltip} arrow placement="top">
-        {chip}
-      </Tooltip>
-    );
-  }
+  const result = tooltip
+    ? <Tooltip title={tooltip} arrow placement="top">{chip}</Tooltip>
+    : chip;
 
-  return chip;
+  return result;
 }
 
 // ────────────────────────────────────────────────────────────────────

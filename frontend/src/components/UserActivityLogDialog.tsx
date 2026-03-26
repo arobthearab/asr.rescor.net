@@ -52,12 +52,18 @@ function formatTimestamp(iso: string): string {
 function formatDuration(oldestIso: string, newestIso: string): string {
   const milliseconds = new Date(newestIso).getTime() - new Date(oldestIso).getTime();
   const seconds = Math.floor(milliseconds / 1000);
-  if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m`;
+
+  let result = `${hours}h ${remainingMinutes}m`;
+  if (seconds < 60) {
+    result = `${seconds}s`;
+  } else if (minutes < 60) {
+    result = `${minutes}m`;
+  }
+
+  return result;
 }
 
 function userLabel(row: { email: string | null; username: string | null; sub: string | null }): string {

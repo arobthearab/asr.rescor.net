@@ -187,10 +187,16 @@ export default function DashboardPage() {
 
   const versionDisplay = useCallback(
     (hash: string | null): { text: string; tooltip: string; ordinal: number } => {
-      if (!hash) return { text: 'v0', tooltip: 'Pre-versioning', ordinal: 0 };
-      const entry = versionMap[hash];
-      if (entry) return { text: entry.number, tooltip: entry.label, ordinal: entry.ordinal };
-      return { text: hash.slice(0, 8), tooltip: hash, ordinal: -1 };
+      let result: { text: string; tooltip: string; ordinal: number } = { text: 'v0', tooltip: 'Pre-versioning', ordinal: 0 };
+      if (hash) {
+        const entry = versionMap[hash];
+        if (entry) {
+          result = { text: entry.number, tooltip: entry.label, ordinal: entry.ordinal };
+        } else {
+          result = { text: hash.slice(0, 8), tooltip: hash, ordinal: -1 };
+        }
+      }
+      return result;
     },
     [versionMap],
   );
