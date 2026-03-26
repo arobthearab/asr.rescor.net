@@ -11,4 +11,11 @@ api/logs/*.log
 api/*.db
 
 # Build output
-frontend/dist/.claude/
+frontend/dist/
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+
+.claude/

@@ -9,6 +9,12 @@
   ],
   "scripts": {
     "dev": "echo 'Use: cd api && npm run dev   or   cd frontend && npm run dev'",
-    "install:all": "npm install && cd api && npm install && cd ../frontend && npm install"
+    "install:all": "npm install && cd api && npm install && cd ../frontend && npm install",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
+    "e2e:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
   }
 }
