@@ -17,16 +17,18 @@
 
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { createHash } from 'node:crypto';
+import { AuthenticationError as CoreAuthenticationError } from '@rescor-llc/core-utils/errors';
 
 const SERVICE_ACCOUNT_KEY_PREFIX = 'sa_';
 
 // ────────────────────────────────────────────────────────────────────
-// AuthenticationError — carries HTTP status for middleware mapping
+// AuthenticationError — extends core-utils AuthenticationError with
+// HTTP statusCode for middleware response mapping
 // ────────────────────────────────────────────────────────────────────
 
-class AuthenticationError extends Error {
+class AuthenticationError extends CoreAuthenticationError {
   constructor(statusCode, message, reason) {
-    super(message);
+    super(message, reason);
     this.statusCode = statusCode;
     this.reason = reason;
   }
